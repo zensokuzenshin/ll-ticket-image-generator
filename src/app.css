@@ -4,6 +4,7 @@
   --danger:#ff6b6b; --ok:#4ec98a;
 }
 *{box-sizing:border-box}
+a{color:var(--accent)}
 html,body{margin:0;height:100%}
 body{
   background:var(--bg); color:var(--text);
