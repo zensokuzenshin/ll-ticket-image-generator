@@ -37,7 +37,7 @@ export function addField(){
   app.A.fields.push(f); select('field',f); snapshotNow()
 }
 export function duplicateField(f){
-  const c={...f,id:nid(),tag:'',name:dispName(f),y:f.y+f.lh}
+  const c={...f,id:nid(),tag:'',name:dispName(f),y:f.y+f.lh,attr:0}   // the copy's pair partner wasn't copied
   app.A.fields.splice(app.A.fields.indexOf(f)+1,0,c)
   select('field',c); snapshotNow()
 }
@@ -46,6 +46,27 @@ export function deleteField(f){
   snapshotNow()
 }
 export function fullWidthField(f){ f.text=toFullWidth(f.text) }
+
+/* ---------- label/value pairing (f.attr = shared pair id, 0 = none) ---------- */
+const nextPairId=()=>app.A.fields.reduce((m,f)=>Math.max(m,+f.attr||0),0)+1
+export function setFieldGrouped(f,on){ f.attr=on?nextPairId():0; snapshotNow() }
+export function setFieldPartner(f,partnerId){
+  const p=app.A.fields.find(x=>x.id===partnerId)
+  if(!p||p===f) return
+  f.attr=p.attr=nextPairId()          // previous partners (if any) stay behind as lone members
+  snapshotNow()
+}
+/** Copies carry their pair ids along: a pair copied whole becomes a fresh
+    pair; a half-copied member leaves the stack (its partner wasn't copied). */
+function remapPairs(copies){
+  const cnt=new Map()
+  for(const f of copies) if(f.attr) cnt.set(f.attr,(cnt.get(f.attr)||0)+1)
+  const fresh=new Map(); let next=nextPairId()
+  for(const f of copies){ if(!f.attr) continue
+    if(cnt.get(f.attr)<2){ f.attr=0; continue }
+    if(!fresh.has(f.attr)) fresh.set(f.attr,next++)
+    f.attr=fresh.get(f.attr) }
+}
 
 /* ---------- images ---------- */
 export function addLogo(){ const im=normalize({images:[NEW_LOGO()]}).images[0]; app.A.images.push(im); select('image',im); snapshotNow() }
@@ -197,6 +218,7 @@ export function doPaste(txt){
       made.push({type:'image',o:im})
     }
   }
+  remapPairs(made.filter(m=>m.type==='field').map(m=>m.o))
   selectMany(made)
   snapshotNow()
   return true
@@ -213,5 +235,6 @@ export function duplicateSel(){
       app.A.images.splice(app.A.images.indexOf(o)+1,0,c); copies.push({type,o:c})
     }
   }
+  remapPairs(copies.filter(c=>c.type==='field').map(c=>c.o))
   selectMany(copies); snapshotNow()
 }

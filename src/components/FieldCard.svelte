@@ -1,12 +1,21 @@
 <script>
   import { app, select, toggleSelect } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
-  import { duplicateField, deleteField, fullWidthField } from '../lib/actions.js'
+  import { duplicateField, deleteField, fullWidthField, setFieldGrouped, setFieldPartner } from '../lib/actions.js'
 
   let { f } = $props()
   let open = $state(false)
   let nmEl, cardEl
   const selected = $derived(app.sel.ids.includes(f.id))
+  // label/value pairing: the field sharing this pair id, and the fields still
+  // free to pair with (not already in a complete pair)
+  const partner = $derived(f.attr ? app.A.fields.find(x => x !== f && x.attr === f.attr) || null : null)
+  const candidates = $derived.by(() => {
+    if (!f.attr) return []
+    const n = new Map()
+    for (const x of app.A.fields) if (x.attr) n.set(x.attr, (n.get(x.attr) || 0) + 1)
+    return app.A.fields.filter(x => x !== f && (x === partner || (n.get(x.attr) || 0) < 2))
+  })
 
   // contenteditable name: written only while not being edited (a reactive text
   // child would reset the caret on every keystroke)
@@ -58,7 +67,15 @@
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.wrap}>{t('cbWrap')}</label>
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.multiline}>{t('cbMultiline')}</label>
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.shrink}>{t('cbShrink')}</label>
-      <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.attr}>{t('cbAttr')}</label>
+      <label class="switch" style="color:var(--muted)"><input type="checkbox" checked={!!f.attr}
+        onchange={e => setFieldGrouped(f, e.currentTarget.checked)}>{t('cbAttr')}</label>
+      {#if f.attr}
+        <select class="pairsel" value={partner ? partner.id : ''}
+          onchange={e => setFieldPartner(f, e.currentTarget.value)}>
+          <option value="" disabled>{t('attrPartnerPick')}</option>
+          {#each candidates as c (c.id)}<option value={c.id}>{dispName(c)}</option>{/each}
+        </select>
+      {/if}
       <button class="sm" style="margin-left:auto" title={t('ttFw')} onclick={() => fullWidthField(f)}>{t('fwShort')}</button>
     </div>
   </div>

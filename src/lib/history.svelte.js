@@ -47,6 +47,8 @@ function diffLabel(prevS,curS){
       const ks=Object.keys(f).filter(kk=>JSON.stringify(f[kk])!==JSON.stringify(p[kk])); if(ks.length) changed.push([f,ks,'field']) }
     for(const im of b.images){ const p=aI.get(im.id)
       const ks=Object.keys(im).filter(kk=>JSON.stringify(im[kk])!==JSON.stringify(p[kk])); if(ks.length) changed.push([im,ks,'image']) }
+    if(changed.length&&changed.every(c=>c[2]==='field'&&c[1].every(kk=>kk==='attr')))
+      return {k:'histGroup',o:changed.length===1?nameRef(changed[0][0]):null}   // pair on/off/partner
     if(changed.length===1){
       const [o,ks,kind]=changed[0], only=set=>ks.every(kk=>set.includes(kk))
       if(kind==='image'&&ks.includes('src')) return {k:'histImage',o:nameRef(o)}

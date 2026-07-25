@@ -20,15 +20,21 @@ export function normalize(tpl){
   tpl.fields=(tpl.fields||[]).map(f=>({id:f.id||nid(),tag:f.tag||'',key:f.key||'',name:f.name||'',
     text:f.text??'',x:+f.x||0,y:+f.y||0,size:+f.size||48,weight:+f.weight||700,
     color:f.color||'#000000',lh:+f.lh||Math.round((+f.size||48)*1.2),ls:+f.ls||0,
-    wrap:f.wrap!==false,multiline:!!f.multiline,shrink:!!f.shrink,attr:!!f.attr}))
+    wrap:f.wrap!==false,multiline:!!f.multiline,shrink:!!f.shrink,
+    attr:f.attr===true?true:Math.max(0,Math.round(+f.attr)||0)}))
+  // Legacy templates stored attr as a boolean and pairing was implied by list
+  // order — rebuild it as explicit pair ids (1,1,2,2,…) preserving that order.
+  if(tpl.fields.some(f=>f.attr===true)){ let n=0; for(const f of tpl.fields) if(f.attr) f.attr=(n++>>1)+1 }
   tpl.attr = tpl.attr ? {top:+tpl.attr.top||0,labelGap:+tpl.attr.labelGap||0,pairGap:+tpl.attr.pairGap||0} : deriveAttr(tpl)
   tpl.guides=(tpl.guides||[]).map(g=>({id:g.id||nid(),axis:g.axis==='y'?'y':'x',pos:Math.round(+g.pos||0)}))
   return tpl
 }
 
-// Attribute-pair distribution: fields flagged attr:true are treated as an
-// ordered run of (label,value) pairs and laid out with a uniform label→value
-// gap and a uniform gap between pairs (value → next label).
+// Attribute-pair distribution: fields sharing a pair id (attr) form one
+// label/value pair (earlier in the list = label) and are laid out with a
+// uniform label→value gap and a uniform gap between pairs (value → next
+// label). Pairs stack in field-list order; a member still waiting for its
+// partner gets a row of its own.
 export function deriveAttr(tpl){
   const st=(tpl.fields||[]).filter(f=>f.attr)
   if(st.length>=3) return {top:Math.round(st[0].y), labelGap:Math.round(st[1].y-st[0].y), pairGap:Math.round(st[2].y-st[1].y)}
@@ -38,10 +44,15 @@ export function deriveAttr(tpl){
 
 export function applyAttrLayout(A){
   if(!A||!A.attr) return
-  const st=A.fields.filter(f=>f.attr)
+  const groups=[], by=new Map()
+  for(const f of A.fields){ if(!f.attr) continue
+    let g=by.get(f.attr); if(!g){ by.set(f.attr,g=[]); groups.push(g) } g.push(f) }
   let y=A.attr.top
-  for(let i=0;i+1<st.length;i+=2){ st[i].y=y; st[i+1].y=y+A.attr.labelGap; y=st[i+1].y+A.attr.pairGap }
-  if(st.length%2===1) st[st.length-1].y=y
+  for(const g of groups){
+    g[0].y=y
+    for(let i=1;i<g.length;i++) g[i].y=g[i-1].y+A.attr.labelGap
+    y=g[g.length-1].y+A.attr.pairGap
+  }
 }
 
 export function blankPreset(){

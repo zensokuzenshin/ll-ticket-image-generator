@@ -89,6 +89,7 @@ button.danger:hover{border-color:var(--danger);color:var(--danger)}
 .paper{position:relative;margin:0 auto;box-shadow:0 8px 40px rgba(0,0,0,.6);background:#fff;line-height:0}
 .paper .ref{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
 .paper canvas{display:block;cursor:crosshair;touch-action:none}
+.pairsel{width:auto;flex:1 1 110px;min-width:0;padding:4px 7px;font-size:11px}
 .switch{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12px;color:var(--muted)}
 .switch input{appearance:none;width:34px;height:18px;background:#3a4150;border-radius:10px;position:relative;cursor:pointer;transition:.15s}
 .switch input:checked{background:var(--accent2)}
