@@ -1,5 +1,4 @@
 <script>
-  import { CW, CH } from '../lib/constants.js'
   import { app, select } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
   import { duplicateImage, deleteImage, moveImage, setImageFile } from '../lib/actions.js'
@@ -39,7 +38,7 @@
   </div>
   <div class="addbtns" style="margin-top:7px">
     <button class="sm" onclick={() => { if (im.natW) im.h = Math.round(im.w * im.natH / im.natW) }}>{t('btnAspect')}</button>
-    <button class="sm" onclick={() => im.x = Math.round((CW - im.w) / 2)}>{t('btnCenter')}</button>
-    <button class="sm" onclick={() => { im.x = 0; im.y = 0; im.w = CW; im.h = CH; im.fill = true }}>{t('btnFill')}</button>
+    <button class="sm" onclick={() => im.x = Math.round((app.A.cw - im.w) / 2)}>{t('btnCenter')}</button>
+    <button class="sm" onclick={() => { im.x = 0; im.y = 0; im.w = app.A.cw; im.h = app.A.ch; im.fill = true }}>{t('btnFill')}</button>
   </div>
 </div>

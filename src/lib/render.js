@@ -1,11 +1,11 @@
-/* Pure Canvas-2D renderer. Output is locked to CW×CH; vertical placement is
-   self-calibrating (measureText ink ascent), so a line's visible top lands on
-   its target Y regardless of the actual font's metrics.
+/* Pure Canvas-2D renderer. Output is exactly A.cw×A.ch (the template's canvas
+   size); vertical placement is self-calibrating (measureText ink ascent), so a
+   line's visible top lands on its target Y regardless of the actual font's
+   metrics.
 
    Bounding boxes are stored in a side map (id → rect) rather than on the
    reactive objects: they are a by-product of drawing, and writing them into
    $state from inside the render effect would retrigger it. */
-import { CW, CH } from './constants.js'
 import { wrapLine, drawTextLine, lineWidth } from './text.js'
 
 const bboxes=new Map()
@@ -13,7 +13,7 @@ export const getBbox=o=>o?bboxes.get(o.id):null
 
 function layoutField(ctx,A,f){
   ctx.font=`${f.weight} ${f.size}px ${A._stack}`
-  const maxW=CW-f.x-A.marR
+  const maxW=A.cw-f.x-A.marR
   let lines=[]
   for(const p of String(f.text).split('\n')){
     lines = f.wrap ? lines.concat(wrapLine(ctx,p,maxW)) : lines.concat([p])
@@ -22,7 +22,7 @@ function layoutField(ctx,A,f){
 }
 
 function drawField(ctx,A,f){
-  const maxW=CW-f.x-A.marR
+  const maxW=A.cw-f.x-A.marR
   let size=f.size, lh=f.lh, lines
   ctx.font=`${f.weight} ${size}px ${A._stack}`
   if(f.shrink){
@@ -63,8 +63,8 @@ function drawImageObj(ctx,im){
 export function renderCanvas(ctx,A,opts){
   if(!A) return
   const {zoom=1,selId=null,showBoxes=false,showGuideLines=false,guideDrag=null,snapHit=null,embed=false,exporting=false}=opts
-  ctx.clearRect(0,0,CW,CH)
-  ctx.fillStyle=A.bg; ctx.fillRect(0,0,CW,CH)
+  ctx.clearRect(0,0,A.cw,A.ch)
+  ctx.fillStyle=A.bg; ctx.fillRect(0,0,A.cw,A.ch)
   for(const im of A.images) drawImageObj(ctx,im)
   for(const f of A.fields) drawField(ctx,A,f)
   if(exporting) return
@@ -78,11 +78,11 @@ export function renderCanvas(ctx,A,opts){
       const hot=g===guideDrag||(snapHit&&(snapHit.x===g||snapHit.y===g))
       ctx.strokeStyle=hot?'#ff33cc':'#00c8ff'; ctx.lineWidth=hot?lw*1.8:lw
       ctx.beginPath()
-      if(g.axis==='x'){ ctx.moveTo(g.pos+.5,0); ctx.lineTo(g.pos+.5,CH) }
-      else            { ctx.moveTo(0,g.pos+.5); ctx.lineTo(CW,g.pos+.5) }
+      if(g.axis==='x'){ ctx.moveTo(g.pos+.5,0); ctx.lineTo(g.pos+.5,A.ch) }
+      else            { ctx.moveTo(0,g.pos+.5); ctx.lineTo(A.cw,g.pos+.5) }
       ctx.stroke()
       if(g===guideDrag){ ctx.fillStyle='#ff33cc'; ctx.font=`bold ${Math.max(30,30/zoom)}px monospace`
-        if(g.axis==='x') ctx.fillText('X '+g.pos, Math.min(g.pos+12,CW-220), 64)
+        if(g.axis==='x') ctx.fillText('X '+g.pos, Math.min(g.pos+12,A.cw-220), 64)
         else             ctx.fillText('Y '+g.pos, 20, Math.max(g.pos-14,40)) }
     }
   }

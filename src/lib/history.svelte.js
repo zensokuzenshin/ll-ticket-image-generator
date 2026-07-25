@@ -35,6 +35,8 @@ function diffLabel(prevS,curS){
     if(added) return {k:'histAdd',o:nameRef(added)}
     const removed=a.fields.find(f=>!bF.has(f.id))||a.images.find(im=>!bI.has(im.id))
     if(removed) return {k:'histDelete',o:nameRef(removed)}
+    // before the guide/item checks: a scaled resize also moves guides and items
+    if(a.cw!==b.cw||a.ch!==b.ch) return {k:'histCanvas',o:null}
     if(b.guides.length!==a.guides.length) return {k:b.guides.length>a.guides.length?'histGuideAdd':'histGuideDel'}
     if(JSON.stringify(a.guides)!==JSON.stringify(b.guides)) return {k:'histGuideMove'}
     if(a.fields.map(f=>f.id).join()!==b.fields.map(f=>f.id).join()||
@@ -87,7 +89,7 @@ async function restoreState(s){
   restoring=true; clearTimeout(histTimer)
   const selId=app.sel.id
   app.A=normalize(JSON.parse(s))
-  await Promise.all(app.A.images.map(loadImageObj))
+  await Promise.all(app.A.images.map(im=>loadImageObj(im,app.A)))
   const f=app.A.fields.find(x=>x.id===selId), im=app.A.images.find(x=>x.id===selId)
   app.sel.type=f?'field':im?'image':null
   app.sel.id=(f||im)?selId:null

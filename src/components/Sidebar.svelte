@@ -20,7 +20,7 @@
         {#each Object.keys(I18N) as code}<option value={code}>{I18N[code]._name || code}</option>{/each}
       </select>
     </div>
-    <div class="sz">{@html t('outputSizeLine')}</div>
+    <div class="sz">{t('outputSize')} <b>{app.A ? `${app.A.cw} × ${app.A.ch}` : '… × …'} px</b></div>
     <div class="exportRow">
       <input type="text" style="flex:2" title={t('fileName')} bind:value={app.fname}>
       <button class="primary" style="flex:1.4" onclick={() => exportImage('png')}>{t('savePng')}</button>

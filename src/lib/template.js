@@ -12,6 +12,7 @@ export function buildStack(font){
 // Items may carry `tag`, a semantic id (fld_show, img_logo…) that resolves the
 // display label via t(tag); `name` is only for untagged (custom/renamed) items.
 export function normalize(tpl){
+  tpl.cw=Math.round(+tpl.cw)||CW; tpl.ch=Math.round(+tpl.ch)||CH
   tpl.marL=+tpl.marL||0; tpl.marR=+tpl.marR||0; tpl.bg=tpl.bg||'#ffffff'; tpl.font=tpl.font||"'Noto Sans JP'"
   tpl._stack=buildStack(tpl.font)
   tpl.images=(tpl.images||[]).map(im=>({id:im.id||nid(),tag:im.tag||'',name:im.name||'',src:im.src||'',
@@ -44,7 +45,7 @@ export function applyAttrLayout(A){
 }
 
 export function blankPreset(){
-  return { name:t('newTicketName'), marL:155, marR:155, bg:'#ffffff', font:"'Noto Sans JP'", images:[],
+  return { name:t('newTicketName'), cw:CW, ch:CH, marL:155, marR:155, bg:'#ffffff', font:"'Noto Sans JP'", images:[],
     fields:[{ name:t('defNameFieldName'), text:t('defNamePlaceholder'), x:155, y:2852, size:120, weight:700, color:'#000000', lh:140, wrap:true, multiline:true }] }
 }
 
@@ -52,7 +53,7 @@ export function blankPreset(){
     per-item identity survive restores. */
 export function serializeState(A){
   if(!A) return null
-  return JSON.stringify({name:A.name,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
+  return JSON.stringify({name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({id:im.id,tag:im.tag,name:im.name,src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
     fields:A.fields.map(f=>({id:f.id,tag:f.tag,key:f.key,role:f.role,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
@@ -60,7 +61,7 @@ export function serializeState(A){
 
 /** Portable template JSON for download — no ids, display names resolved. */
 export function templateJSON(A,dispName){
-  return {name:A.name,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
+  return {name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({name:dispName(im),src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
     fields:A.fields.map(f=>({key:f.key,role:f.role,name:dispName(f),text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))}
@@ -78,4 +79,4 @@ export const SAMPLE_TEXT = {
 // Default geometry for newly added items (measured from the hasu5th preset).
 export const NEW_FIELD = ()=>({name:t('defNewFieldName'),text:t('defNewFieldText'),x:155,y:1591,size:80,weight:700,color:'#000000',lh:109,wrap:true})
 export const NEW_LOGO  = ()=>({name:t('defLogoName'),x:0,y:136,w:1350})
-export const NEW_BG    = ()=>({name:t('defBgName'),x:0,y:0,w:CW,h:CH,fill:true})
+export const NEW_BG    = (A)=>({name:t('defBgName'),x:0,y:0,w:A.cw,h:A.ch,fill:true})

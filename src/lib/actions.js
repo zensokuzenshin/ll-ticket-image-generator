@@ -1,7 +1,6 @@
 /* All user-facing operations on the working template. Components call these;
    canvas re-rendering happens automatically because the template is $state. */
 import { flushSync } from 'svelte'
-import { CW, CH } from './constants.js'
 import { app, select, selRef, nid } from './state.svelte.js'
 import { t, dispName } from './i18n.js'
 import { normalize, blankPreset, templateJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
@@ -14,7 +13,7 @@ export async function loadTemplate(tpl){
   app.A=normalize(JSON.parse(JSON.stringify(tpl)))
   for(const f of app.A.fields) if(!f.text && SAMPLE_TEXT[f.tag]) f.text=SAMPLE_TEXT[f.tag]
   select(null,null)
-  await Promise.all(app.A.images.map(loadImageObj))
+  await Promise.all(app.A.images.map(im=>loadImageObj(im,app.A)))
   flushSync()                  // paint the new template before the history baseline takes its thumb
   resetHistory()               // a loaded template starts a fresh undo history
 }
@@ -50,7 +49,7 @@ export function fullWidthField(f){ f.text=toFullWidth(f.text) }
 
 /* ---------- images ---------- */
 export function addLogo(){ const im=normalize({images:[NEW_LOGO()]}).images[0]; app.A.images.push(im); select('image',im); snapshotNow() }
-export function addBg(){ const im=normalize({images:[NEW_BG()]}).images[0]; app.A.images.unshift(im); snapshotNow() }
+export function addBg(){ const im=normalize({images:[NEW_BG(app.A)]}).images[0]; app.A.images.unshift(im); snapshotNow() }
 export function duplicateImage(im){
   const c={...im,id:nid(),tag:'',name:dispName(im),x:im.x+30,y:im.y+30}
   app.A.images.splice(app.A.images.indexOf(im)+1,0,c)
@@ -67,13 +66,13 @@ export function moveImage(im,dir){
 }
 export function setImageFile(im,file){
   const fr=new FileReader()
-  fr.onload=async()=>{ im.src=fr.result; im.w=0; im.h=0; await loadImageObj(im); snapshotNow() }
+  fr.onload=async()=>{ im.src=fr.result; im.w=0; im.h=0; await loadImageObj(im,app.A); snapshotNow() }
   fr.readAsDataURL(file)
 }
 
 /* ---------- guides ---------- */
 export function addGuide(axis){
-  const g={id:nid(),axis,pos:Math.round(axis==='x'?CW/2:CH/2)}
+  const g={id:nid(),axis,pos:Math.round(axis==='x'?app.A.cw/2:app.A.ch/2)}
   app.A.guides.push(g)
   app.secCollapsed.guides=false
   snapshotNow()
@@ -81,6 +80,30 @@ export function addGuide(axis){
 export function removeGuide(g){ app.A.guides=app.A.guides.filter(x=>x!==g); snapshotNow() }
 
 /* ---------- layout ---------- */
+/* Resize the canvas (per-printer output size). With scale=true the contents
+   follow: x-axis quantities (x, widths, margins, font size, letter-spacing)
+   by the width ratio, y-axis quantities (y, heights, line-height, pair-stack
+   gaps) by the height ratio. Font size scales with the x-axis on purpose —
+   text advance widths then scale exactly with the wrap width (cw − x − marR),
+   so line-break points cannot flip; an aspect change is absorbed as looser or
+   tighter line-height instead. */
+export function setCanvasSize(w,h,scale){
+  const A=app.A
+  w=Math.round(+w)||0; h=Math.round(+h)||0
+  if(w<16||h<16||(w===A.cw&&h===A.ch)) return
+  if(scale){
+    const kx=w/A.cw, ky=h/A.ch
+    const rx=v=>Math.round(v*kx), ry=v=>Math.round(v*ky)
+    A.marL=rx(A.marL); A.marR=rx(A.marR)
+    for(const f of A.fields){ f.x=rx(f.x); f.size=Math.max(1,rx(f.size)); f.ls=rx(f.ls)
+      f.y=ry(f.y); f.lh=Math.max(1,ry(f.lh)) }
+    for(const im of A.images){ im.x=rx(im.x); im.w=Math.max(1,rx(im.w)); im.y=ry(im.y); im.h=Math.max(1,ry(im.h)) }
+    for(const g of A.guides) g.pos=g.axis==='x'?rx(g.pos):ry(g.pos)
+    if(A.attr){ A.attr.top=ry(A.attr.top); A.attr.labelGap=ry(A.attr.labelGap); A.attr.pairGap=ry(A.attr.pairGap) }
+  }
+  A.cw=w; A.ch=h
+  snapshotNow()
+}
 export function setFont(font){ app.A.font=font; app.A._stack=buildStack(font) }
 export function applyAttrLayout(){ applyAttr(app.A) }
 export function distributePairs(){ applyAttr(app.A); snapshotNow() }
@@ -173,7 +196,7 @@ export function doPaste(txt){
   } else {
     const im=normalize({images:[d]}).images[0]
     app.A.images.push(im)
-    loadImageObj(im).then(()=>{ snapshotNow() })
+    loadImageObj(im,app.A).then(()=>{ snapshotNow() })
     select('image',im)
   }
   snapshotNow()
