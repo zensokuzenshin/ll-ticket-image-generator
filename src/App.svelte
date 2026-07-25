@@ -6,7 +6,7 @@
   import { blankPreset } from './lib/template.js'
   import { loadTemplate, ensureFonts, exportImage, saveTemplate, applyAttrLayout,
            doCopy, doPaste, deleteSel, duplicateSel } from './lib/actions.js'
-  import { undo, redo } from './lib/history.svelte.js'
+  import { undo, redo, restoreSession, persistNow } from './lib/history.svelte.js'
   import Sidebar from './components/Sidebar.svelte'
   import Stage from './components/Stage.svelte'
   import HistoryPanel from './components/HistoryPanel.svelte'
@@ -33,15 +33,22 @@
   })
 
   onMount(async () => {
-    app.presets = await loadPresets()
+    const loaded = await loadPresets()
+    app.presets = loaded && loaded.presets
+    app.presetGroups = loaded && loaded.groups
     if (!app.presets) {                       // fetch failed (e.g. file://) → degrade gracefully
       app.presets = { blank: blankPreset() }
       app.presetErr = true
     }
-    let firstKey = Object.keys(app.presets)[0]
-    const qpreset = params.get('preset'); if (qpreset && app.presets[qpreset]) firstKey = qpreset
-    app.presetKey = firstKey
-    await loadTemplate(app.presets[firstKey])
+    // an explicit ?preset= (or embed/scripted use) beats the saved session
+    const qpreset = params.get('preset')
+    const restored = !qpreset && !app.embed && await restoreSession()
+    if (!restored) {
+      let firstKey = Object.keys(app.presets)[0]
+      if (qpreset && app.presets[qpreset]) firstKey = qpreset
+      app.presetKey = firstKey
+      await loadTemplate(app.presets[firstKey])
+    }
     ensureFonts()
     if (params.has('boxes')) app.showBoxes = true
     const qd = params.get('distribute')               // ?distribute=top,labelGap,pairGap
@@ -89,7 +96,7 @@
   function onPaste(e) { if (editingCtx()) return; const txt = e.clipboardData ? e.clipboardData.getData('text/plain') : ''; if (doPaste(txt)) e.preventDefault() }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onpagehide={persistNow} />
 <svelte:document oncopy={onCopy} oncut={onCut} onpaste={onPaste} />
 
 <div class="shell" class:embed={app.embed} class:histoff={!app.histOn}>

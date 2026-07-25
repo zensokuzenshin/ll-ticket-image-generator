@@ -49,13 +49,43 @@ export function blankPreset(){
     fields:[{ name:t('defNameFieldName'), text:t('defNamePlaceholder'), x:155, y:2852, size:120, weight:700, color:'#000000', lh:140, wrap:true, multiline:true }] }
 }
 
+/* Uploaded images are data: URLs, potentially megabytes each — inlining them
+   into every history snapshot would duplicate them per edit and overflow
+   localStorage when the session is persisted. serializeState() swaps any
+   data: src for a stable `tigref:N` handle backed by this session-lifetime
+   store; handles exist only inside snapshot strings (and the persisted
+   session blob) — the working template always holds the real src. */
+const srcList=[], srcMap=new Map()
+function internSrc(src){
+  if(!/^data:/i.test(src||'')) return src
+  let r=srcMap.get(src)
+  if(!r){ r='tigref:'+srcList.length; srcList.push(src); srcMap.set(src,r) }
+  return r
+}
+export function resolveSrc(src){
+  const m=/^tigref:(\d+)$/.exec(src||'')
+  return m ? (srcList[+m[1]]||'') : src
+}
+/** Handles referenced by the given snapshot strings → {N: dataURL} table. */
+export function collectSrcs(strings){
+  const o={}
+  for(const s of strings){ const re=/"tigref:(\d+)"/g; let m
+    while((m=re.exec(s))) if(srcList[+m[1]]!=null) o[m[1]]=srcList[+m[1]] }
+  return o
+}
+/** Refill the store from a persisted table (before its snapshots restore). */
+export function seedSrcs(tbl){
+  for(const k in tbl){ const i=+k
+    if(Number.isInteger(i)&&i>=0&&typeof tbl[k]==='string'){ srcList[i]=tbl[k]; srcMap.set(tbl[k],'tigref:'+i) } }
+}
+
 /** Snapshot for undo history — includes ids (and tags) so selection and
     per-item identity survive restores. */
 export function serializeState(A){
   if(!A) return null
   return JSON.stringify({name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
-    images:A.images.map(im=>({id:im.id,tag:im.tag,name:im.name,src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
+    images:A.images.map(im=>({id:im.id,tag:im.tag,name:im.name,src:internSrc(im.src),x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
     fields:A.fields.map(f=>({id:f.id,tag:f.tag,key:f.key,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
 }
 

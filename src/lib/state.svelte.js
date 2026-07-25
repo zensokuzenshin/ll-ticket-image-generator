@@ -11,6 +11,7 @@ export const app = $state({
   sel: { type: null, id: null, ids: [] },
 
   presets: null,              // key → template (fetched from presets/)
+  presetGroups: null,         // catalogue tree [{name, series:[{name, keys}]}], null = flat list
   presetKey: '',
   presetErr: false,
 
@@ -38,6 +39,8 @@ export const app = $state({
 
 let uid = 1
 export const nid = () => 'id' + (uid++)
+/** Session restore brings back ids minted last session — continue above them. */
+export const seedNid = n => { if (n >= uid) uid = n + 1 }
 
 /** The primary selected field/image object inside the current template, or null. */
 export function selRef() {
