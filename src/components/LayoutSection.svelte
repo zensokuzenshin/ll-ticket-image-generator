@@ -17,7 +17,7 @@
   }
 </script>
 
-<Section id="layout" title={t('secLayout')}>
+<Section id="layout" title={t('secLayout')} hint={t('layoutHint')}>
   <div class="grid2">
     <div class="field"><label>{t('canvasW')}</label><input type="number" min="16" value={app.A.cw} onchange={e => commitSize(e, 'w')}></div>
     <div class="field"><label>{t('canvasH')}</label><input type="number" min="16" value={app.A.ch} onchange={e => commitSize(e, 'h')}></div>
@@ -36,5 +36,4 @@
     </select>
   </div>
   <div class="field"><label>{t('bgColor')}</label><input type="color" bind:value={app.A.bg}></div>
-  <div class="mini">{@html t('layoutHint')}</div>
 </Section>

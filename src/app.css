@@ -20,10 +20,18 @@ body{
 .sidebar::-webkit-scrollbar-thumb{background:#3a4150;border-radius:6px}
 .topbar{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 16px}
 .topbar h1{font-size:14px;margin:0 0 2px;font-weight:700}
-.topbar .sz{font-size:11px;color:var(--muted)}
+.topbar .sz{font-size:11px;color:var(--muted);cursor:pointer;width:fit-content}
 .topbar .sz b{color:var(--accent)}
+.topbar .sz:hover b{text-decoration:underline}
+.gh{display:inline-flex;color:var(--muted);flex:0 0 auto}
+.gh:hover{color:var(--text)}
+.gh svg{width:15px;height:15px;fill:currentColor}
 .exportRow{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
-.sec{border-bottom:1px solid var(--line);padding:14px 16px}
+.sec{border-bottom:1px solid var(--line);padding:14px 16px;scroll-margin-top:96px}
+/* per-section help toggle (?) — hints render only on demand */
+.qm{margin-left:auto;flex:0 0 auto;width:16px;height:16px;padding:0;border-radius:50%;background:none;border:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1}
+.qm:hover{color:var(--text)}
+.titlerow .qm{margin-left:0}
 .sec h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .sec h2 .tw{transition:transform .15s;font-size:9px;color:#6b7384}
 .sec.collapsed h2 .tw{transform:rotate(-90deg)}

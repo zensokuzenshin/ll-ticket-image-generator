@@ -23,7 +23,6 @@
     <span class="nm" contenteditable="true" spellcheck="false" bind:this={nmEl}
       oninput={() => { f.name = nmEl.textContent; f.tag = '' }}></span>
     <div class="tools">
-      <button class="sm ghost" title={t('ttFw')} onclick={() => fullWidthField(f)}>{t('fwShort')}</button>
       <button class="sm ghost" title={t('ttDup')} onclick={() => duplicateField(f)}>⎘</button>
       <button class="sm ghost" title={t('ttAdv')} onclick={() => open = !open}>⚙</button>
       <button class="sm ghost danger" title={t('ttDel')} onclick={() => deleteField(f)}>✕</button>
@@ -43,7 +42,7 @@
       <div><label>Y</label><input type="number" value={f.y} oninput={e => f.y = num(e)}></div>
       <div><label>{t('lblLh')}</label><input type="number" value={f.lh} oninput={e => f.lh = num(e)}></div>
     </div>
-    <div class="grid4" style="margin-top:7px;align-items:end">
+    <div class="grid3" style="margin-top:7px;align-items:end">
       <div><label>{t('lblWeight')}</label>
         <select bind:value={f.weight}>
           <option value={400}>400</option><option value={500}>500</option>
@@ -52,18 +51,13 @@
       </div>
       <div><label>{t('lblLs')}</label><input type="number" value={f.ls} oninput={e => f.ls = num(e)}></div>
       <div><label>{t('lblColor')}</label><input type="color" bind:value={f.color}></div>
-      <div><label>{t('lblRole')}</label>
-        <select bind:value={f.role}>
-          <option value="none">—</option><option value="show">show</option>
-          <option value="date">date</option><option value="times">times</option>
-        </select>
-      </div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px">
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;align-items:center">
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.wrap}>{t('cbWrap')}</label>
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.multiline}>{t('cbMultiline')}</label>
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.shrink}>{t('cbShrink')}</label>
       <label class="switch" style="color:var(--muted)"><input type="checkbox" bind:checked={f.attr}>{t('cbAttr')}</label>
+      <button class="sm" style="margin-left:auto" title={t('ttFw')} onclick={() => fullWidthField(f)}>{t('fwShort')}</button>
     </div>
   </div>
 </div>

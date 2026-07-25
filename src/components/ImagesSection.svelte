@@ -6,7 +6,7 @@
   import ImageCard from './ImageCard.svelte'
 </script>
 
-<Section id="images" title={t('secImages')}>
+<Section id="images" title={t('secImages')} hint={t('imagesHint')}>
   <div>
     {#each app.A.images as im (im.id)}
       <ImageCard {im} />
@@ -16,5 +16,4 @@
     <button class="sm" onclick={addLogo}>{t('addLogo')}</button>
     <button class="sm" onclick={addBg}>{t('addBg')}</button>
   </div>
-  <div class="mini">{@html t('imagesHint')}</div>
 </Section>

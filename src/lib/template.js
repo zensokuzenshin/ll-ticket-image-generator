@@ -17,7 +17,7 @@ export function normalize(tpl){
   tpl._stack=buildStack(tpl.font)
   tpl.images=(tpl.images||[]).map(im=>({id:im.id||nid(),tag:im.tag||'',name:im.name||'',src:im.src||'',
     x:+im.x||0,y:+im.y||0,w:+im.w||0,h:+im.h||0,fill:!!im.fill,_img:null,natW:0,natH:0}))
-  tpl.fields=(tpl.fields||[]).map(f=>({id:f.id||nid(),tag:f.tag||'',key:f.key||'',role:f.role||'none',name:f.name||'',
+  tpl.fields=(tpl.fields||[]).map(f=>({id:f.id||nid(),tag:f.tag||'',key:f.key||'',name:f.name||'',
     text:f.text??'',x:+f.x||0,y:+f.y||0,size:+f.size||48,weight:+f.weight||700,
     color:f.color||'#000000',lh:+f.lh||Math.round((+f.size||48)*1.2),ls:+f.ls||0,
     wrap:f.wrap!==false,multiline:!!f.multiline,shrink:!!f.shrink,attr:!!f.attr}))
@@ -56,7 +56,7 @@ export function serializeState(A){
   return JSON.stringify({name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({id:im.id,tag:im.tag,name:im.name,src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
-    fields:A.fields.map(f=>({id:f.id,tag:f.tag,key:f.key,role:f.role,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
+    fields:A.fields.map(f=>({id:f.id,tag:f.tag,key:f.key,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
 }
 
 /** Portable template JSON for download — no ids, display names resolved. */
@@ -64,7 +64,7 @@ export function templateJSON(A,dispName){
   return {name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({name:dispName(im),src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
-    fields:A.fields.map(f=>({key:f.key,role:f.role,name:dispName(f),text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))}
+    fields:A.fields.map(f=>({key:f.key,name:dispName(f),text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))}
 }
 
 /* Built-in presets ship the personal fields (座席番号 / 氏名 values) empty;

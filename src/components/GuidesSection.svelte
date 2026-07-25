@@ -5,7 +5,7 @@
   import Section from './Section.svelte'
 </script>
 
-<Section id="guides" title={t('secGuides')}>
+<Section id="guides" title={t('secGuides')} hint={t('guideHint')}>
   <div>
     {#each app.A.guides as g (g.id)}
       <div class="guiderow">
@@ -19,5 +19,4 @@
     <button class="sm" onclick={() => addGuide('x')}>{t('addGuideV')}</button>
     <button class="sm" onclick={() => addGuide('y')}>{t('addGuideH')}</button>
   </div>
-  <div class="mini">{@html t('guideHint')}</div>
 </Section>

@@ -57,7 +57,7 @@
   // Central render: every reactive read below re-runs this effect, replacing
   // all the manual render() calls of the pre-Svelte app. serializeState() is
   // called for its reads: it touches template props the drawing itself doesn't
-  // (margins, roles, names…), so those edits also land in the undo history.
+  // (margins, names…), so those edits also land in the undo history.
   $effect(() => {
     if (!app.A || !ctx) return
     serializeState(app.A)
@@ -159,7 +159,6 @@
 
 <main class="stage">
   <div class="stagebar">
-    <span class="pill">{cw} × {ch}</span>
     <div class="grp"><span>{t('stView')}</span>
       <button class="sm" onclick={() => zoomStep(1 / 1.15)}>−</button>
       <span style="min-width:42px;text-align:center">{Math.round(app.zoom * 100)}%</span>
@@ -170,15 +169,20 @@
       <button class="sm" title={t('ttUndo')} disabled={!hist.undo.length} onclick={undo}>↶</button>
       <button class="sm" title={t('ttRedo')} disabled={!hist.redo.length} onclick={redo}>↷</button>
     </div>
-    <label class="switch"><span>{t('stRef')}</span><input type="checkbox" bind:checked={app.refOn}></label>
+    {#if app.refSrc}
+      <label class="switch"><span>{t('stRef')}</span><input type="checkbox" bind:checked={app.refOn}></label>
+    {/if}
     <label class="switch"><span>{t('stGuide')}</span><input type="checkbox" bind:checked={app.showBoxes}></label>
     <label class="switch"><span>{t('stGuideLines')}</span><input type="checkbox" bind:checked={app.showGuideLines}></label>
     <label class="switch"><span>{t('stHistory')}</span><input type="checkbox" bind:checked={app.histOn} onchange={persistHist}></label>
     <span class="selinfo">{selInfo}</span>
     <span style="flex:1"></span>
-    <span class="pill" style="color:{app.fontState === 'ok' ? 'var(--ok)' : 'var(--muted)'}">
-      {app.fontState === 'ok' ? 'Noto Sans JP ✓' : app.fontState === 'system' ? t('fontSystem') : t('fontLoading')}
-    </span>
+    {#if app.fontState !== 'ok'}
+      <span class="pill" style="color:{app.fontState === 'system' ? 'var(--danger)' : 'var(--muted)'}"
+        title={app.fontState === 'system' ? t('fontSystemTt') : null}>
+        {app.fontState === 'system' ? t('fontSystem') : t('fontLoading')}
+      </span>
+    {/if}
   </div>
   <div class="canvaswrap" bind:this={wrapEl}>
     <div class="paper" style="width:{cw * app.zoom}px;height:{ch * app.zoom}px">

@@ -29,7 +29,7 @@ export const app = $state({
   refOpacity: 45,
 
   // collapsible sidebar sections (true = collapsed)
-  secCollapsed: { preset: false, helper: true, fields: false, attr: true, guides: true, images: true, layout: true, ref: true },
+  secCollapsed: { preset: false, fields: false, attr: true, guides: true, images: true, layout: true, ref: true },
 })
 
 let uid = 1

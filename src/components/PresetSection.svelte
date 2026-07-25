@@ -7,26 +7,26 @@
   let fileEl
 </script>
 
-<Section id="preset" title={t('secPreset')}>
+<Section id="preset" title={t('secPreset')} hint={t('presetHint')}>
   <div class="field">
     <label>{t('selPreset')}</label>
-    <select bind:value={app.presetKey} onchange={() => loadPresetKey(app.presetKey)}>
-      {#each Object.keys(app.presets || {}) as k (k)}
-        <option value={k}>{app.presets[k].name || k}</option>
-      {/each}
-      <option value="__custom">{t('presetCustom')}</option>
-    </select>
+    <div class="row" style="align-items:center">
+      <select bind:value={app.presetKey} onchange={() => loadPresetKey(app.presetKey)}>
+        {#each Object.keys(app.presets || {}) as k (k)}
+          <option value={k}>{app.presets[k].name || k}</option>
+        {/each}
+        <option value="__custom">{t('presetCustom')}</option>
+      </select>
+      <button class="sm ghost" style="flex:0 0 auto" title={t('btnReset')}
+        onclick={() => loadPresetKey(app.presetKey)}>↻</button>
+    </div>
   </div>
-  <div class="grid2" style="margin-bottom:8px">
-    <button class="sm" onclick={() => loadPresetKey(app.presetKey)}>{t('btnReset')}</button>
+  <div class="addbtns">
     <button class="sm" onclick={newBlank}>{t('btnNew')}</button>
-  </div>
-  <div class="grid2">
     <button class="sm" onclick={saveTemplate}>{t('btnSave')}</button>
     <button class="sm" onclick={() => fileEl.click()}>{t('btnLoad')}</button>
   </div>
   <input type="file" accept="application/json,.json" hidden bind:this={fileEl}
     onchange={e => { const f = e.currentTarget.files[0]; if (f) loadTemplateFile(f); e.currentTarget.value = '' }}>
   {#if app.presetErr}<div class="mini" style="color:var(--danger)">{t('presetLoadErr')}</div>{/if}
-  <div class="mini">{@html t('presetHint')}</div>
 </Section>

@@ -11,11 +11,10 @@
   }
 </script>
 
-<Section id="ref" title={t('secRef')}>
+<Section id="ref" title={t('secRef')} hint={t('refHint')}>
   <div class="field"><label>{t('refLoad')}</label><input type="file" accept="image/*" onchange={loadRef}></div>
   <div class="field">
     <label>{t('opacity')} <span>{app.refOpacity}%</span></label>
     <input type="range" min="0" max="100" bind:value={app.refOpacity}>
   </div>
-  <div class="mini">{@html t('refHint')}</div>
 </Section>

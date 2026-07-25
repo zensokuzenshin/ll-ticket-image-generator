@@ -7,12 +7,11 @@
   const setAttr = (key, e) => { app.A.attr[key] = parseFloat(e.currentTarget.value) || 0; applyAttrLayout() }
 </script>
 
-<Section id="attr" title={t('secAttr')}>
+<Section id="attr" title={t('secAttr')} hint={t('attrHint')}>
   <div class="grid3">
     <div class="field"><label>{t('attrTop')}</label><input type="number" value={app.A.attr.top} oninput={e => setAttr('top', e)}></div>
     <div class="field"><label>{t('attrLabelGap')}</label><input type="number" value={app.A.attr.labelGap} oninput={e => setAttr('labelGap', e)}></div>
     <div class="field"><label>{t('attrPairGap')}</label><input type="number" value={app.A.attr.pairGap} oninput={e => setAttr('pairGap', e)}></div>
   </div>
   <div class="addbtns"><button class="sm" onclick={distributePairs}>{t('attrApply')}</button></div>
-  <div class="mini">{@html t('attrHint')}</div>
 </Section>

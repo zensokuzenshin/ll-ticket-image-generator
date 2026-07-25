@@ -55,7 +55,7 @@ function diffLabel(prevS,curS){
       return {k:'histStyle',o:nameRef(o)}
     }
     if(changed.length>1){
-      if(changed.every(c=>c[1].every(kk=>kk==='text'))) return {k:'histText',o:null}       // date/time helper
+      if(changed.every(c=>c[1].every(kk=>kk==='text'))) return {k:'histText',o:null}
       if(changed.every(c=>c[0].attr&&c[1].every(kk=>kk==='y'))) return {k:'histPairs',o:null} // distribute
     }
     if(JSON.stringify(a.attr)!==JSON.stringify(b.attr)) return {k:'histPairs',o:null}

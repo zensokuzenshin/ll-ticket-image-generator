@@ -108,18 +108,6 @@ export function setFont(font){ app.A.font=font; app.A._stack=buildStack(font) }
 export function applyAttrLayout(){ applyAttr(app.A) }
 export function distributePairs(){ applyAttr(app.A); snapshotNow() }
 
-/* ---------- show-info helper ---------- */
-const WD=['日','月','火','水','木','金','土']
-export function applyShowInfo(d,open,start){
-  if(!d) return
-  const [Y,M,D]=d.split('-').map(Number); const wd=WD[new Date(Y,M-1,D).getDay()]
-  const map={ show:`${M}月${D}日（${wd}）${start}公演`, date:`${Y}年${M}月${D}日（${wd}）${start}`, times:`[開場] ${open}　[開演] ${start}` }
-  let hit=false
-  app.A.fields.forEach(f=>{ if(map[f.role]!==undefined){ f.text=map[f.role]; hit=true } })
-  if(!hit){ alert(t('alertNoRole')); return }
-  snapshotNow()
-}
-
 /* ---------- presets / template files ---------- */
 export function newBlank(){ app.presetKey='__custom'; loadTemplate(blankPreset()) }
 export function loadPresetKey(k){ if(app.presets&&app.presets[k]){ loadTemplate(app.presets[k]) } }
@@ -166,7 +154,7 @@ let clipInternal=null
 function packSel(){
   const o=selRef(); if(!o) return null
   return app.sel.type==='field'
-    ? {__ticket:1,kind:'field',data:{tag:o.tag,key:o.key,role:o.role,name:o.name,text:o.text,x:o.x,y:o.y,size:o.size,weight:o.weight,color:o.color,lh:o.lh,ls:o.ls,wrap:o.wrap,multiline:o.multiline,shrink:o.shrink,attr:o.attr}}
+    ? {__ticket:1,kind:'field',data:{tag:o.tag,key:o.key,name:o.name,text:o.text,x:o.x,y:o.y,size:o.size,weight:o.weight,color:o.color,lh:o.lh,ls:o.ls,wrap:o.wrap,multiline:o.multiline,shrink:o.shrink,attr:o.attr}}
     : {__ticket:1,kind:'image',data:{tag:o.tag,name:o.name,src:o.src,x:o.x,y:o.y,w:o.w,h:o.h,fill:o.fill}}
 }
 export function doCopy(e){
