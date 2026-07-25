@@ -72,6 +72,7 @@
   "fontSystemTt": "Noto Sans JP를 불러오지 못했습니다 — 글자가 의도한 출력과 다르게 보일 수 있습니다.",
   "ttHelp": "도움말",
   "selPrefix": "선택",
+  "selMulti": "{n}개 항목",
   "presetCustom": "(사용자 지정)",
   "presetLoadErr": "presets/ 를 불러오지 못했습니다. HTTP로 제공하거나(예: python -m http.server) 「템플릿 불러오기」로 JSON을 여세요.",
   "exportTaint": "외부 URL 로고(CORS 미지원)로 인해 내보내기가 차단되었습니다. 같은 출처 또는 CORS 허용 URL을 사용하거나 이미지를 업로드하세요.",

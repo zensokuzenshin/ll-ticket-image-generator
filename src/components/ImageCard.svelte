@@ -1,19 +1,20 @@
 <script>
-  import { app, select } from '../lib/state.svelte.js'
+  import { app, select, toggleSelect } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
   import { duplicateImage, deleteImage, moveImage, setImageFile } from '../lib/actions.js'
 
   let { im } = $props()
   let nmEl, cardEl
-  const selected = $derived(app.sel.id === im.id)
+  const selected = $derived(app.sel.ids.includes(im.id))
 
   $effect(() => { const s = dispName(im); if (nmEl && document.activeElement !== nmEl) nmEl.textContent = s })
-  $effect(() => { if (selected && cardEl) cardEl.scrollIntoView({ block: 'nearest' }) })
+  $effect(() => { if (app.sel.id === im.id && cardEl) cardEl.scrollIntoView({ block: 'nearest' }) })
 
   const num = e => parseFloat(e.currentTarget.value) || 0
 </script>
 
-<div class="card" class:sel={selected} bind:this={cardEl} onmousedown={() => select('image', im)}>
+<div class="card" class:sel={selected} bind:this={cardEl}
+  onmousedown={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); toggleSelect('image', im) } else select('image', im) }}>
   <div class="hd">
     <span class="nm" contenteditable="true" spellcheck="false" bind:this={nmEl}
       oninput={() => { im.name = nmEl.textContent; im.tag = '' }}></span>

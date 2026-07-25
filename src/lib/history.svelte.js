@@ -57,6 +57,7 @@ function diffLabel(prevS,curS){
     if(changed.length>1){
       if(changed.every(c=>c[1].every(kk=>kk==='text'))) return {k:'histText',o:null}
       if(changed.every(c=>c[0].attr&&c[1].every(kk=>kk==='y'))) return {k:'histPairs',o:null} // distribute
+      if(changed.every(c=>c[1].every(kk=>kk==='x'||kk==='y'))) return {k:'histMove',o:null}   // multi-selection drag/nudge
     }
     if(JSON.stringify(a.attr)!==JSON.stringify(b.attr)) return {k:'histPairs',o:null}
     if(a.name!==b.name) return {k:'histRename',o:null}
@@ -87,12 +88,14 @@ export function resetHistory(){
 
 async function restoreState(s){
   restoring=true; clearTimeout(histTimer)
-  const selId=app.sel.id
+  const selId=app.sel.id, selIds=app.sel.ids
   app.A=normalize(JSON.parse(s))
   await Promise.all(app.A.images.map(im=>loadImageObj(im,app.A)))
-  const f=app.A.fields.find(x=>x.id===selId), im=app.A.images.find(x=>x.id===selId)
-  app.sel.type=f?'field':im?'image':null
-  app.sel.id=(f||im)?selId:null
+  const alive=new Set([...app.A.fields,...app.A.images].map(o=>o.id))
+  app.sel.ids=selIds.filter(id=>alive.has(id))
+  const pid=alive.has(selId)?selId:app.sel.ids[app.sel.ids.length-1]||null
+  app.sel.id=pid
+  app.sel.type=pid?(app.A.fields.some(f=>f.id===pid)?'field':'image'):null
   restoring=false; clearTimeout(histTimer)
 }
 

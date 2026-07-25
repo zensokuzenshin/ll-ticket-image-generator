@@ -1,7 +1,7 @@
 <script>
   import { onMount, untrack, flushSync } from 'svelte'
   import { CW, CH } from '../lib/constants.js'
-  import { app, select, selRef } from '../lib/state.svelte.js'
+  import { app, select, toggleSelect, primarySelect, selectMany, selRef, selRefs } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
   import { renderCanvas, hitTest, getBbox } from '../lib/render.js'
   import { serializeState } from '../lib/template.js'
@@ -11,6 +11,8 @@
   let drag = null                       // {ref, ox, oy} — not drawn, so not reactive
   let guideDrag = $state(null)
   let snapHit = $state(null)
+  let marquee = $state(null)            // rubber-band rect {x0,y0,x1,y1,add} while dragging on empty canvas
+  let marqueeSel = $state([])           // live {type,o} pairs fully inside the rect
   let cursor = $state('crosshair')
 
   // canvas size comes from the template (per-printer); CW/CH only pre-boot
@@ -63,8 +65,9 @@
     serializeState(app.A)
     app.fontTick; app.renderTick
     renderCanvas(ctx, app.A, {
-      zoom: app.zoom, selId: app.sel.id, showBoxes: app.showBoxes,
+      zoom: app.zoom, selIds: app.sel.ids, showBoxes: app.showBoxes,
       showGuideLines: app.showGuideLines, guideDrag, snapHit, embed: app.embed,
+      marquee, marqueeIds: marqueeSel.map(s => s.o.id),
     })
     untrack(() => scheduleSnapshot())   // history: every mutation ends in a render; dedup by serialization
   })
@@ -92,6 +95,7 @@
   }
 
   const selInfo = $derived.by(() => {
+    if (app.sel.ids.length > 1) return `${t('selPrefix')}: ${t('selMulti').replace('{n}', app.sel.ids.length)}`
     const r = selRef()
     return r ? `${t('selPrefix')}: ${dispName(r)}（X${Math.round(r.x)} Y${Math.round(r.y)}）` : ''
   })
@@ -107,18 +111,45 @@
     return null
   }
   function onPointerDown(ev) {
-    if (!app.A) return
+    if (!app.A || ev.button !== 0) return   // macOS ctrl+click arrives as the context-menu button
     const pt = canvasPt(ev)
     if (app.showGuideLines) { const g = guideHit(pt); if (g) { guideDrag = g; try { cv.setPointerCapture(ev.pointerId) } catch (e) {} return } }
     const h = hitTest(app.A, pt)
-    if (h) { select(h[0], h[1]); drag = { ref: h[1], ox: pt.x - h[1].x, oy: pt.y - h[1].y }; try { cv.setPointerCapture(ev.pointerId) } catch (e) {} }
-    else select(null, null)
+    const multi = ev.ctrlKey || ev.metaKey
+    if (h) {
+      if (multi) { toggleSelect(h[0], h[1]); if (!app.sel.ids.includes(h[1].id)) return }  // toggled off → nothing to drag
+      else primarySelect(h[0], h[1])
+      // drag the whole selection; group members keep their offset to the grabbed item
+      const others = selRefs().filter(s => s.o !== h[1]).map(s => ({ ref: s.o, dx: s.o.x - h[1].x, dy: s.o.y - h[1].y }))
+      // plain click on a multi-selection member: collapse to it on release unless dragged
+      drag = { type: h[0], ref: h[1], ox: pt.x - h[1].x, oy: pt.y - h[1].y, others, moved: false, collapse: !multi && others.length > 0 }
+      try { cv.setPointerCapture(ev.pointerId) } catch (e) {}
+    }
+    else {
+      // empty canvas: rubber-band select, PowerPoint style (items fully inside the
+      // rect; ctrl adds to the selection). A zero-size rect on release acts as the
+      // old empty-click: clear, or keep when ctrl was held.
+      marquee = { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y, add: multi }
+      marqueeSel = []
+      try { cv.setPointerCapture(ev.pointerId) } catch (e) {}
+    }
   }
   function onPointerMove(ev) {
     if (!app.A) return
     const pt = canvasPt(ev)
     if (guideDrag) {
       guideDrag.pos = Math.round(guideDrag.axis === 'x' ? pt.x : pt.y)
+      return
+    }
+    if (marquee) {
+      marquee.x1 = pt.x; marquee.y1 = pt.y
+      const x0 = Math.min(marquee.x0, pt.x), x1 = Math.max(marquee.x0, pt.x)
+      const y0 = Math.min(marquee.y0, pt.y), y1 = Math.max(marquee.y0, pt.y)
+      const inside = o => { const b = getBbox(o); return b && b.x >= x0 && b.y >= y0 && b.x + b.w <= x1 && b.y + b.h <= y1 }
+      marqueeSel = [
+        ...app.A.fields.filter(inside).map(o => ({ type: 'field', o })),
+        ...app.A.images.filter(inside).map(o => ({ type: 'image', o })),
+      ]
       return
     }
     if (!drag) {
@@ -140,7 +171,9 @@
       if (bdy !== null) { ny = Math.round(ny + bdy) }
       if (hit.x || hit.y) snapHit = hit
     }
+    if (nx !== drag.ref.x || ny !== drag.ref.y) drag.moved = true
     drag.ref.x = nx; drag.ref.y = ny
+    for (const o of drag.others) { o.ref.x = Math.round(nx + o.dx); o.ref.y = Math.round(ny + o.dy) }
   }
   function onPointerUp() {
     if (guideDrag) {
@@ -149,7 +182,17 @@
       if (out) app.A.guides = app.A.guides.filter(x => x !== g)
       snapshotNow()
     }
-    if (drag) { drag = null; snapHit = null }
+    if (marquee) {
+      if (marquee.add) {
+        const have = new Set(app.sel.ids)
+        selectMany([...selRefs(), ...marqueeSel.filter(s => !have.has(s.o.id))])
+      } else selectMany(marqueeSel)
+      marquee = null; marqueeSel = []
+    }
+    if (drag) {
+      if (drag.collapse && !drag.moved) select(drag.type, drag.ref)
+      drag = null; snapHit = null
+    }
   }
 
   function persistHist() { try { localStorage.setItem('tig_hist', app.histOn ? '1' : '0') } catch (e) {} }

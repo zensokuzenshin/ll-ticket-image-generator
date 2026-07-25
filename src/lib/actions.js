@@ -1,7 +1,7 @@
 /* All user-facing operations on the working template. Components call these;
    canvas re-rendering happens automatically because the template is $state. */
 import { flushSync } from 'svelte'
-import { app, select, selRef, nid } from './state.svelte.js'
+import { app, select, selRefs, selectMany, deselectRef, nid } from './state.svelte.js'
 import { t, dispName } from './i18n.js'
 import { normalize, blankPreset, templateJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
 import { loadImageObj } from './images.js'
@@ -42,7 +42,7 @@ export function duplicateField(f){
   select('field',c); snapshotNow()
 }
 export function deleteField(f){
-  app.A.fields=app.A.fields.filter(x=>x!==f); if(app.sel.id===f.id) select(null,null)
+  app.A.fields=app.A.fields.filter(x=>x!==f); deselectRef(f)
   snapshotNow()
 }
 export function fullWidthField(f){ f.text=toFullWidth(f.text) }
@@ -56,7 +56,7 @@ export function duplicateImage(im){
   select('image',c); snapshotNow()
 }
 export function deleteImage(im){
-  app.A.images=app.A.images.filter(x=>x!==im); if(app.sel.id===im.id) select(null,null)
+  app.A.images=app.A.images.filter(x=>x!==im); deselectRef(im)
   snapshotNow()
 }
 export function moveImage(im,dir){
@@ -151,11 +151,15 @@ export function exportImage(type){
    (works across tabs), with an internal fallback payload.
    ============================================================ */
 let clipInternal=null
+function packOne(type,o){
+  return type==='field'
+    ? {kind:'field',data:{tag:o.tag,key:o.key,name:o.name,text:o.text,x:o.x,y:o.y,size:o.size,weight:o.weight,color:o.color,lh:o.lh,ls:o.ls,wrap:o.wrap,multiline:o.multiline,shrink:o.shrink,attr:o.attr}}
+    : {kind:'image',data:{tag:o.tag,name:o.name,src:o.src,x:o.x,y:o.y,w:o.w,h:o.h,fill:o.fill}}
+}
 function packSel(){
-  const o=selRef(); if(!o) return null
-  return app.sel.type==='field'
-    ? {__ticket:1,kind:'field',data:{tag:o.tag,key:o.key,name:o.name,text:o.text,x:o.x,y:o.y,size:o.size,weight:o.weight,color:o.color,lh:o.lh,ls:o.ls,wrap:o.wrap,multiline:o.multiline,shrink:o.shrink,attr:o.attr}}
-    : {__ticket:1,kind:'image',data:{tag:o.tag,name:o.name,src:o.src,x:o.x,y:o.y,w:o.w,h:o.h,fill:o.fill}}
+  const items=selRefs(); if(!items.length) return null
+  if(items.length===1) return {__ticket:1,...packOne(items[0].type,items[0].o)}
+  return {__ticket:1,kind:'multi',items:items.map(s=>packOne(s.type,s.o))}
 }
 export function doCopy(e){
   const p=packSel(); if(!p) return false
@@ -166,31 +170,48 @@ export function doCopy(e){
   return true
 }
 export function deleteSel(){
-  const o=selRef(); if(!o) return false
-  if(app.sel.type==='field') deleteField(o); else deleteImage(o)
+  const items=selRefs(); if(!items.length) return false
+  const ids=new Set(items.map(s=>s.o.id))
+  app.A.fields=app.A.fields.filter(f=>!ids.has(f.id))
+  app.A.images=app.A.images.filter(im=>!ids.has(im.id))
+  select(null,null); snapshotNow()
   return true
 }
 export function doPaste(txt){
   let p=null
   try{ const j=JSON.parse(txt); if(j&&j.__ticket) p=j }catch(e){}
   if(!p) p=clipInternal
-  if(!p||!p.data) return false
-  const d=JSON.parse(JSON.stringify(p.data))
-  d.x=(+d.x||0)+30; d.y=(+d.y||0)+30
-  p.data.x=d.x; p.data.y=d.y          // cumulative offset on repeated paste
-  if(p.kind==='field'){
-    const f=normalize({fields:[d]}).fields[0]
-    app.A.fields.push(f); select('field',f)
-  } else {
-    const im=normalize({images:[d]}).images[0]
-    app.A.images.push(im)
-    loadImageObj(im,app.A).then(()=>{ snapshotNow() })
-    select('image',im)
+  if(!p||(!p.data&&!p.items)) return false
+  const made=[]
+  for(const ent of p.kind==='multi'?p.items:[p]){
+    const d=JSON.parse(JSON.stringify(ent.data))
+    d.x=(+d.x||0)+30; d.y=(+d.y||0)+30
+    ent.data.x=d.x; ent.data.y=d.y    // cumulative offset on repeated paste
+    if(ent.kind==='field'){
+      const f=normalize({fields:[d]}).fields[0]
+      app.A.fields.push(f); made.push({type:'field',o:f})
+    } else {
+      const im=normalize({images:[d]}).images[0]
+      app.A.images.push(im)
+      loadImageObj(im,app.A).then(()=>{ snapshotNow() })
+      made.push({type:'image',o:im})
+    }
   }
+  selectMany(made)
   snapshotNow()
   return true
 }
 export function duplicateSel(){
-  const o=selRef(); if(!o) return
-  app.sel.type==='field'?duplicateField(o):duplicateImage(o)
+  const items=selRefs(); if(!items.length) return
+  const copies=[]
+  for(const {type,o} of items){
+    if(type==='field'){
+      const c={...o,id:nid(),tag:'',name:dispName(o),y:o.y+o.lh}
+      app.A.fields.splice(app.A.fields.indexOf(o)+1,0,c); copies.push({type,o:c})
+    } else {
+      const c={...o,id:nid(),tag:'',name:dispName(o),x:o.x+30,y:o.y+30}
+      app.A.images.splice(app.A.images.indexOf(o)+1,0,c); copies.push({type,o:c})
+    }
+  }
+  selectMany(copies); snapshotNow()
 }

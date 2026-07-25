@@ -72,6 +72,7 @@
   "fontSystemTt": "Noto Sans JP を読み込めませんでした — 文字の見た目が本来の出力と異なる場合があります。",
   "ttHelp": "ヘルプ",
   "selPrefix": "選択",
+  "selMulti": "{n}件",
   "presetCustom": "（カスタム）",
   "presetLoadErr": "presets/ を読み込めませんでした。HTTPで配信するか（例: python -m http.server）、「テンプレート読込」でJSONを開いてください。",
   "exportTaint": "CORS非対応の外部URLロゴのため書き出しがブロックされました。同一オリジンまたはCORS許可のURLを使うか、画像をアップロードしてください。",

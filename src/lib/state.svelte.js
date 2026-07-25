@@ -5,7 +5,10 @@
 export const app = $state({
   A: null,                    // active working template
   lang: 'ko',
-  sel: { type: null, id: null },   // selection by id so it survives undo/redo restores
+  // selection by id so it survives undo/redo restores. `ids` is the full
+  // (ctrl+click) multi-selection; type/id is the primary item — the one the
+  // sidebar panels edit. ids always contains id when something is selected.
+  sel: { type: null, id: null, ids: [] },
 
   presets: null,              // key → template (fetched from presets/)
   presetKey: '',
@@ -35,7 +38,7 @@ export const app = $state({
 let uid = 1
 export const nid = () => 'id' + (uid++)
 
-/** The selected field/image object inside the current template, or null. */
+/** The primary selected field/image object inside the current template, or null. */
 export function selRef() {
   if (!app.A || !app.sel.id) return null
   if (app.sel.type === 'field') return app.A.fields.find(f => f.id === app.sel.id) || null
@@ -43,7 +46,55 @@ export function selRef() {
   return null
 }
 
+/** Every selected object as {type, o}, in template order (stale ids drop out). */
+export function selRefs() {
+  if (!app.A || !app.sel.ids.length) return []
+  const out = []
+  for (const f of app.A.fields) if (app.sel.ids.includes(f.id)) out.push({ type: 'field', o: f })
+  for (const im of app.A.images) if (app.sel.ids.includes(im.id)) out.push({ type: 'image', o: im })
+  return out
+}
+
+const typeOf = id => app.A && app.A.fields.some(f => f.id === id) ? 'field' : 'image'
+
+/** Plain click: selection becomes just this item (or empty). */
 export function select(type, ref) {
   app.sel.type = ref ? type : null
   app.sel.id = ref ? ref.id : null
+  app.sel.ids = ref ? [ref.id] : []
+}
+
+/** Ctrl+click: toggle membership; a newly added item becomes primary. */
+export function toggleSelect(type, ref) {
+  if (!ref) return
+  if (app.sel.ids.includes(ref.id)) deselectRef(ref)
+  else {
+    app.sel.ids = [...app.sel.ids, ref.id]
+    app.sel.type = type; app.sel.id = ref.id
+  }
+}
+
+/** Plain click on an already-selected member keeps the group, only moves primary. */
+export function primarySelect(type, ref) {
+  if (app.sel.ids.includes(ref.id)) { app.sel.type = type; app.sel.id = ref.id }
+  else select(type, ref)
+}
+
+/** Replace the selection with a set of {type, o} (e.g. fresh duplicates). */
+export function selectMany(items) {
+  if (!items.length) { select(null, null); return }
+  app.sel.ids = items.map(s => s.o.id)
+  const last = items[items.length - 1]
+  app.sel.type = last.type; app.sel.id = last.o.id
+}
+
+/** Drop one item from the selection (ctrl+click toggle-off, or it was deleted). */
+export function deselectRef(ref) {
+  if (!app.sel.ids.includes(ref.id)) return
+  app.sel.ids = app.sel.ids.filter(x => x !== ref.id)
+  if (app.sel.id === ref.id) {
+    const next = app.sel.ids[app.sel.ids.length - 1] || null
+    app.sel.id = next
+    app.sel.type = next ? typeOf(next) : null
+  }
 }

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { app, select, selRef } from './lib/state.svelte.js'
+  import { app, select, selRef, selRefs } from './lib/state.svelte.js'
   import { I18N, detectLang } from './lib/i18n.js'
   import { loadPresets } from './lib/presets.js'
   import { blankPreset } from './lib/template.js'
@@ -56,13 +56,13 @@
   /* ---------- keyboard ---------- */
   function editingCtx() { const el = document.activeElement; return !!el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable) }
   function onKeydown(ev) {
-    // arrow-key nudge for the selected item (never while typing)
-    const r = selRef()
-    if (r && !editingCtx()) {
-      const s = ev.shiftKey ? 10 : 1; let u = true
-      if (ev.key === 'ArrowLeft') r.x -= s; else if (ev.key === 'ArrowRight') r.x += s
-      else if (ev.key === 'ArrowUp') r.y -= s; else if (ev.key === 'ArrowDown') r.y += s; else u = false
-      if (u) { ev.preventDefault(); return }
+    // arrow-key nudge for the selected item(s) (never while typing)
+    const rs = selRefs()
+    if (rs.length && !editingCtx()) {
+      const s = ev.shiftKey ? 10 : 1; let dx = 0, dy = 0
+      if (ev.key === 'ArrowLeft') dx = -s; else if (ev.key === 'ArrowRight') dx = s
+      else if (ev.key === 'ArrowUp') dy = -s; else if (ev.key === 'ArrowDown') dy = s
+      if (dx || dy) { for (const { o } of rs) { o.x += dx; o.y += dy } ev.preventDefault(); return }
     }
     const mod = ev.ctrlKey || ev.metaKey, k = ev.key.toLowerCase()
     if (mod && k === 'z') { if (editingCtx()) return                    // native text undo in inputs

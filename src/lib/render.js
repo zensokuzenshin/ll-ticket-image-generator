@@ -54,24 +54,34 @@ function drawImageObj(ctx,im){
 
 /**
  * Draw the full frame. opts:
- *   zoom, selId          — selection box for this item (null → none)
+ *   zoom, selIds         — selection boxes for these items ([] → none)
  *   showBoxes            — draw every item's exact bounding box
  *   showGuideLines       — draw guides (suppressed when embed/exporting)
  *   guideDrag, snapHit   — hot guides highlighted magenta
+ *   marquee, marqueeIds  — rubber-band rect {x0,y0,x1,y1} + items caught so far
  *   embed, exporting
  */
 export function renderCanvas(ctx,A,opts){
   if(!A) return
-  const {zoom=1,selId=null,showBoxes=false,showGuideLines=false,guideDrag=null,snapHit=null,embed=false,exporting=false}=opts
+  const {zoom=1,selIds=[],showBoxes=false,showGuideLines=false,guideDrag=null,snapHit=null,marquee=null,marqueeIds=[],embed=false,exporting=false}=opts
   ctx.clearRect(0,0,A.cw,A.ch)
   ctx.fillStyle=A.bg; ctx.fillRect(0,0,A.cw,A.ch)
   for(const im of A.images) drawImageObj(ctx,im)
   for(const f of A.fields) drawField(ctx,A,f)
   if(exporting) return
   // exact bounding box — edges coincide with the snap targets, so a snapped box sits flush on the guide
+  const hot=id=>selIds.includes(id)||marqueeIds.includes(id)
   const drawBox=(b,on)=>{ if(!b)return; ctx.strokeStyle=on?'#4d9aff':'rgba(120,160,220,.5)'; ctx.lineWidth=on?Math.max(4,4/zoom):Math.max(2,2/zoom); ctx.strokeRect(b.x,b.y,b.w,b.h) }
-  if(showBoxes){ for(const im of A.images) drawBox(bboxes.get(im.id),im.id===selId); for(const f of A.fields) drawBox(bboxes.get(f.id),f.id===selId) }
-  else if(selId) drawBox(bboxes.get(selId),true)
+  if(showBoxes){ for(const im of A.images) drawBox(bboxes.get(im.id),hot(im.id)); for(const f of A.fields) drawBox(bboxes.get(f.id),hot(f.id)) }
+  else for(const id of new Set([...selIds,...marqueeIds])) drawBox(bboxes.get(id),true)
+  if(marquee){
+    const x=Math.min(marquee.x0,marquee.x1), y=Math.min(marquee.y0,marquee.y1)
+    const w=Math.abs(marquee.x1-marquee.x0), h=Math.abs(marquee.y1-marquee.y0)
+    ctx.fillStyle='rgba(77,154,255,.08)'; ctx.fillRect(x,y,w,h)
+    ctx.strokeStyle='#4d9aff'; ctx.lineWidth=Math.max(2,2/zoom)
+    ctx.setLineDash([Math.max(6,6/zoom),Math.max(5,5/zoom)])
+    ctx.strokeRect(x,y,w,h); ctx.setLineDash([])
+  }
   if(!embed && showGuideLines && A.guides.length){
     const lw=Math.max(2,2/zoom)
     for(const g of A.guides){

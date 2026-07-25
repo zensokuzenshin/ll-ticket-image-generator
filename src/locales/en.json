@@ -72,6 +72,7 @@
   "fontSystemTt": "Noto Sans JP could not be loaded — text may render differently from the intended output.",
   "ttHelp": "Help",
   "selPrefix": "Selected",
+  "selMulti": "{n} items",
   "presetCustom": "(custom)",
   "presetLoadErr": "Could not load presets/. Serve over HTTP (e.g. python -m http.server), or use “Load template” to open a JSON.",
   "exportTaint": "Export was blocked by a cross-origin logo URL without CORS. Use a same-origin or CORS-enabled URL, or upload the image instead.",

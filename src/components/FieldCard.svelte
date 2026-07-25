@@ -1,24 +1,26 @@
 <script>
-  import { app, select } from '../lib/state.svelte.js'
+  import { app, select, toggleSelect } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
   import { duplicateField, deleteField, fullWidthField } from '../lib/actions.js'
 
   let { f } = $props()
   let open = $state(false)
   let nmEl, cardEl
-  const selected = $derived(app.sel.id === f.id)
+  const selected = $derived(app.sel.ids.includes(f.id))
 
   // contenteditable name: written only while not being edited (a reactive text
   // child would reset the caret on every keystroke)
   $effect(() => { const s = dispName(f); if (nmEl && document.activeElement !== nmEl) nmEl.textContent = s })
-  // keep the card in view when the item is selected from the canvas
-  $effect(() => { if (selected && cardEl) cardEl.scrollIntoView({ block: 'nearest' }) })
+  // keep the card in view when the item is selected from the canvas (primary only,
+  // so a multi-selection doesn't fight over the scroll position)
+  $effect(() => { if (app.sel.id === f.id && cardEl) cardEl.scrollIntoView({ block: 'nearest' }) })
 
   const num = e => parseFloat(e.currentTarget.value) || 0
 </script>
 
 <div class="card" class:sel={selected} class:open bind:this={cardEl}
-  onmousedown={() => select('field', f)} onfocusin={() => select('field', f)}>
+  onmousedown={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); toggleSelect('field', f) } else select('field', f) }}
+  onfocusin={() => select('field', f)}>
   <div class="hd">
     <span class="nm" contenteditable="true" spellcheck="false" bind:this={nmEl}
       oninput={() => { f.name = nmEl.textContent; f.tag = '' }}></span>
