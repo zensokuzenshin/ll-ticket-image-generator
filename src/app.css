@@ -84,8 +84,14 @@ button.danger:hover{border-color:var(--danger);color:var(--danger)}
 .stage{flex:1;display:flex;flex-direction:column;min-width:0;background:#0e0f13}
 .stagebar{padding:9px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;background:var(--panel);flex-wrap:wrap}
 .stagebar .grp{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+/* rulers frame the scroll area: corner | top ruler above, left ruler beside the canvaswrap */
+.stagearea{flex:1;min-height:0;display:grid;grid-template-columns:22px 1fr;grid-template-rows:22px 1fr}
+.rulcorner{background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ruler{display:block;width:100%;height:100%;background:var(--panel);touch-action:none}
+.ruler.rul-h{border-bottom:1px solid var(--line);cursor:ns-resize}
+.ruler.rul-v{border-right:1px solid var(--line);cursor:ew-resize}
 /* paper centers via margin auto, not justify-content — keeps the left edge scrollable when wider than the viewport */
-.canvaswrap{flex:1;overflow:auto;display:flex;align-items:flex-start;padding:24px}
+.canvaswrap{flex:1;min-width:0;min-height:0;overflow:auto;display:flex;align-items:flex-start;padding:24px}
 .paper{position:relative;margin:0 auto;box-shadow:0 8px 40px rgba(0,0,0,.6);background:#fff;line-height:0}
 .paper .ref{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
 .paper canvas{display:block;cursor:crosshair;touch-action:none}
@@ -125,5 +131,6 @@ body.embed{overflow:visible}
 .shell.embed{overflow:visible}
 .shell.embed .sidebar,.shell.embed .stagebar,.shell.embed .histpanel{display:none}
 .shell.embed .stage{background:#fff}
+.shell.embed .stagearea{display:flex}
 .shell.embed .canvaswrap{padding:0;overflow:visible;align-items:flex-start;justify-content:flex-start}
 .shell.embed .paper{box-shadow:none;margin:0}

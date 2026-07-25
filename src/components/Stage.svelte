@@ -1,13 +1,14 @@
 <script>
   import { onMount, untrack, flushSync } from 'svelte'
   import { CW, CH } from '../lib/constants.js'
-  import { app, select, toggleSelect, primarySelect, selectMany, selRef, selRefs } from '../lib/state.svelte.js'
+  import { app, select, toggleSelect, primarySelect, selectMany, selRef, selRefs, nid } from '../lib/state.svelte.js'
   import { t, dispName } from '../lib/i18n.js'
   import { renderCanvas, hitTest, getBbox } from '../lib/render.js'
   import { serializeState } from '../lib/template.js'
   import { hist, scheduleSnapshot, snapshotNow, undo, redo } from '../lib/history.svelte.js'
 
   let cv, wrapEl, ctx
+  let hrEl, vrEl                        // ruler canvases (top / left), absent in embed
   let drag = null                       // {ref, ox, oy} — not drawn, so not reactive
   let guideDrag = $state(null)
   let snapHit = $state(null)
@@ -46,15 +47,21 @@
     window.addEventListener('wheel', onWheel, { passive: false })
     window.addEventListener('gesturestart', onGestureStart)
     window.addEventListener('gesturechange', onGestureChange)
+    const ro = new ResizeObserver(scheduleRulers)   // stage resize moves the paper under the rulers
+    ro.observe(wrapEl)
     return () => {
       window.removeEventListener('wheel', onWheel)
       window.removeEventListener('gesturestart', onGestureStart)
       window.removeEventListener('gesturechange', onGestureChange)
+      ro.disconnect()
     }
   })
 
   // re-fit the view whenever the canvas size changes (template load or resize)
   $effect(() => { cw; ch; if (!app.embed && wrapEl) untrack(fit) })
+
+  // rulers follow zoom and canvas size; scroll/resize redraws hook in via listeners
+  $effect(() => { app.zoom; cw; ch; if (!app.embed) scheduleRulers() })
 
   // Central render: every reactive read below re-runs this effect, replacing
   // all the manual render() calls of the pre-Svelte app. serializeState() is
@@ -100,6 +107,73 @@
     return r ? `${t('selPrefix')}: ${dispName(r)}（X${Math.round(r.x)} Y${Math.round(r.y)}）` : ''
   })
 
+  /* ---------- rulers: canvas-pixel scale pinned to the stage edges ---------- */
+  let rulerRaf = false
+  function scheduleRulers() { if (rulerRaf) return; rulerRaf = true; requestAnimationFrame(() => { rulerRaf = false; drawRulers() }) }
+  function drawRulers() {
+    if (!hrEl || !vrEl || !cv) return
+    const cr = cv.getBoundingClientRect()
+    drawRuler(hrEl, cr, true)
+    drawRuler(vrEl, cr, false)
+  }
+  // labeled ticks every `major` canvas px (≥56 screen px so 4-digit labels fit), minors between
+  function tickSteps(z) {
+    let major = 10000
+    for (const s of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) if (s * z >= 56) { major = s; break }
+    const minor = [major / 10, major / 5, major / 2].find(m => m * z >= 5) || major
+    return { major, minor }
+  }
+  function drawRuler(el, cr, horiz) {
+    const dpr = window.devicePixelRatio || 1
+    const w = el.clientWidth, h = el.clientHeight               // content box (borders live outside the bitmap)
+    if (el.width !== Math.round(w * dpr) || el.height !== Math.round(h * dpr)) { el.width = Math.round(w * dpr); el.height = Math.round(h * dpr) }
+    const c = el.getContext('2d')
+    c.setTransform(dpr, 0, 0, dpr, 0, 0)
+    const vars = getComputedStyle(el)
+    const cssVar = (n, fb) => (vars.getPropertyValue(n) || '').trim() || fb
+    const z = app.zoom, er = el.getBoundingClientRect()
+    const len = horiz ? w : h, thick = horiz ? h : w
+    const origin = horiz ? cr.left - er.left : cr.top - er.top  // screen px where canvas 0 sits
+    const band = (from, size, color) => { c.fillStyle = color; horiz ? c.fillRect(from, 0, size, h) : c.fillRect(0, from, w, size) }
+    band(0, len, cssVar('--panel', '#1e2128'))
+    band(origin, (horiz ? cw : ch) * z, cssVar('--panel2', '#262a33'))  // lighter over the document extent
+    const { major, minor } = tickSteps(z)
+    c.strokeStyle = cssVar('--line', '#333845')
+    c.fillStyle = cssVar('--muted', '#9aa3b2')
+    c.font = '9px system-ui,sans-serif'
+    c.lineWidth = 1
+    c.beginPath()
+    const v0 = Math.floor((0 - origin) / z / minor) * minor
+    const v1 = Math.ceil((len - origin) / z / minor) * minor
+    for (let v = v0; v <= v1; v += minor) {
+      const p = Math.round(origin + v * z) + .5
+      const maj = v % major === 0
+      const start = maj ? 10 : thick - 5
+      if (horiz) { c.moveTo(p, start); c.lineTo(p, thick) }
+      else { c.moveTo(start, p); c.lineTo(thick, p) }
+      if (maj) {
+        if (horiz) c.fillText(String(v), p + 2.5, 8)
+        else { c.save(); c.translate(8, p - 2.5); c.rotate(-Math.PI / 2); c.fillText(String(v), 0, 0); c.restore() }
+      }
+    }
+    c.stroke()
+  }
+  // pull a new guide out of a ruler, photoshop-style: top ruler → horizontal, left → vertical
+  function rulerDown(ev, axis) {
+    if (!app.A || ev.button !== 0) return
+    app.showGuideLines = true
+    const pt = canvasPt(ev)
+    app.A.guides.push({ id: nid(), axis, pos: Math.round(axis === 'x' ? pt.x : pt.y) })
+    guideDrag = app.A.guides[app.A.guides.length - 1]           // the $state proxy, not the raw object
+    app.secCollapsed.guides = false
+    try { ev.currentTarget.setPointerCapture(ev.pointerId) } catch (e) {}
+  }
+  function rulerMove(ev) {
+    if (!guideDrag) return
+    const pt = canvasPt(ev)
+    guideDrag.pos = Math.round(guideDrag.axis === 'x' ? pt.x : pt.y)
+  }
+
   /* ---------- pointer: guides drag, object drag with guide snapping ---------- */
   function canvasPt(ev) { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) / app.zoom, y: (ev.clientY - r.top) / app.zoom } }
   function guideHit(pt) {
@@ -122,7 +196,7 @@
       // drag the whole selection; group members keep their offset to the grabbed item
       const others = selRefs().filter(s => s.o !== h[1]).map(s => ({ ref: s.o, dx: s.o.x - h[1].x, dy: s.o.y - h[1].y }))
       // plain click on a multi-selection member: collapse to it on release unless dragged
-      drag = { type: h[0], ref: h[1], ox: pt.x - h[1].x, oy: pt.y - h[1].y, others, moved: false, collapse: !multi && others.length > 0 }
+      drag = { type: h[0], ref: h[1], ox: pt.x - h[1].x, oy: pt.y - h[1].y, sx: h[1].x, sy: h[1].y, others, moved: false, collapse: !multi && others.length > 0 }
       try { cv.setPointerCapture(ev.pointerId) } catch (e) {}
     }
     else {
@@ -157,11 +231,19 @@
       return
     }
     let nx = Math.round(pt.x - drag.ox), ny = Math.round(pt.y - drag.oy)
+    // shift constrains the move to the dominant axis, photoshop-style; recomputed
+    // every event, so swinging the pointer flips which axis is locked mid-drag
+    let lock = null
+    if (ev.shiftKey) {
+      lock = Math.abs(nx - drag.sx) >= Math.abs(ny - drag.sy) ? 'y' : 'x'
+      if (lock === 'y') ny = drag.sy; else nx = drag.sx
+    }
     snapHit = null
     if (!ev.altKey && app.showGuideLines && app.A.guides.length) {
       const b = getBbox(drag.ref) || { w: 0, h: 0 }, th = Math.max(6, 8 / app.zoom), hit = { x: null, y: null }
       let bdx = null, bdy = null
       for (const g of app.A.guides) {
+        if (g.axis === lock) continue                            // the locked coordinate must not snap away
         if (g.axis === 'x') { for (const c of [nx, nx + (b.w || 0) / 2, nx + (b.w || 0)]) { const d = g.pos - c
           if (Math.abs(d) <= th && (bdx === null || Math.abs(d) < Math.abs(bdx))) { bdx = d; hit.x = g } } }
         else               { for (const c of [ny, ny + (b.h || 0) / 2, ny + (b.h || 0)]) { const d = g.pos - c
@@ -175,13 +257,14 @@
     drag.ref.x = nx; drag.ref.y = ny
     for (const o of drag.others) { o.ref.x = Math.round(nx + o.dx); o.ref.y = Math.round(ny + o.dy) }
   }
+  function endGuideDrag() {
+    const g = guideDrag; guideDrag = null
+    const out = g.axis === 'x' ? (g.pos < 0 || g.pos > cw) : (g.pos < 0 || g.pos > ch)
+    if (out) app.A.guides = app.A.guides.filter(x => x !== g)
+    snapshotNow()
+  }
   function onPointerUp() {
-    if (guideDrag) {
-      const g = guideDrag; guideDrag = null
-      const out = g.axis === 'x' ? (g.pos < 0 || g.pos > cw) : (g.pos < 0 || g.pos > ch)
-      if (out) app.A.guides = app.A.guides.filter(x => x !== g)
-      snapshotNow()
-    }
+    if (guideDrag) endGuideDrag()
     if (marquee) {
       if (marquee.add) {
         const have = new Set(app.sel.ids)
@@ -227,15 +310,24 @@
       </span>
     {/if}
   </div>
-  <div class="canvaswrap" bind:this={wrapEl}>
-    <div class="paper" style="width:{cw * app.zoom}px;height:{ch * app.zoom}px">
-      {#if app.refSrc}
-        <img class="ref" src={app.refSrc} alt=""
-          style="display:{app.refOn ? 'block' : 'none'};opacity:{app.refOpacity / 100}">
-      {/if}
-      <canvas bind:this={cv} width={cw} height={ch}
-        style="width:{cw * app.zoom}px;height:{ch * app.zoom}px;cursor:{cursor}"
-        onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp}></canvas>
+  <div class="stagearea">
+    {#if !app.embed}
+      <div class="rulcorner"></div>
+      <canvas class="ruler rul-h" title={t('rulerTip')} bind:this={hrEl}
+        onpointerdown={e => rulerDown(e, 'y')} onpointermove={rulerMove} onpointerup={onPointerUp}></canvas>
+      <canvas class="ruler rul-v" title={t('rulerTip')} bind:this={vrEl}
+        onpointerdown={e => rulerDown(e, 'x')} onpointermove={rulerMove} onpointerup={onPointerUp}></canvas>
+    {/if}
+    <div class="canvaswrap" bind:this={wrapEl} onscroll={scheduleRulers}>
+      <div class="paper" style="width:{cw * app.zoom}px;height:{ch * app.zoom}px">
+        {#if app.refSrc}
+          <img class="ref" src={app.refSrc} alt=""
+            style="display:{app.refOn ? 'block' : 'none'};opacity:{app.refOpacity / 100}">
+        {/if}
+        <canvas bind:this={cv} width={cw} height={ch}
+          style="width:{cw * app.zoom}px;height:{ch * app.zoom}px;cursor:{cursor}"
+          onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp}></canvas>
+      </div>
     </div>
   </div>
 </main>
