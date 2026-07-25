@@ -5,7 +5,7 @@
   import { t, dispName } from '../lib/i18n.js'
   import { renderCanvas, hitTest, getBbox } from '../lib/render.js'
   import { serializeState } from '../lib/template.js'
-  import { hist, scheduleSnapshot, snapshotNow, undo, redo } from '../lib/history.svelte.js'
+  import { hist, scheduleSnapshot, beginGesture, endGesture, undo, redo } from '../lib/history.svelte.js'
 
   let cv, wrapEl, ctx
   let hrEl, vrEl                        // ruler canvases (top / left), absent in embed
@@ -162,6 +162,7 @@
   function rulerDown(ev, axis) {
     if (!app.A || ev.button !== 0) return
     app.showGuideLines = true
+    beginGesture()                                             // pull-out + placement = one history entry
     const pt = canvasPt(ev)
     app.A.guides.push({ id: nid(), axis, pos: Math.round(axis === 'x' ? pt.x : pt.y) })
     guideDrag = app.A.guides[app.A.guides.length - 1]           // the $state proxy, not the raw object
@@ -187,12 +188,13 @@
   function onPointerDown(ev) {
     if (!app.A || ev.button !== 0) return   // macOS ctrl+click arrives as the context-menu button
     const pt = canvasPt(ev)
-    if (app.showGuideLines) { const g = guideHit(pt); if (g) { guideDrag = g; try { cv.setPointerCapture(ev.pointerId) } catch (e) {} return } }
+    if (app.showGuideLines) { const g = guideHit(pt); if (g) { beginGesture(); guideDrag = g; try { cv.setPointerCapture(ev.pointerId) } catch (e) {} return } }
     const h = hitTest(app.A, pt)
     const multi = ev.ctrlKey || ev.metaKey
     if (h) {
       if (multi) { toggleSelect(h[0], h[1]); if (!app.sel.ids.includes(h[1].id)) return }  // toggled off → nothing to drag
       else primarySelect(h[0], h[1])
+      beginGesture()                    // the whole drag is one history entry, pauses included
       // drag the whole selection; group members keep their offset to the grabbed item
       const others = selRefs().filter(s => s.o !== h[1]).map(s => ({ ref: s.o, dx: s.o.x - h[1].x, dy: s.o.y - h[1].y }))
       // plain click on a multi-selection member: collapse to it on release unless dragged
@@ -261,8 +263,10 @@
     const g = guideDrag; guideDrag = null
     const out = g.axis === 'x' ? (g.pos < 0 || g.pos > cw) : (g.pos < 0 || g.pos > ch)
     if (out) app.A.guides = app.A.guides.filter(x => x !== g)
-    snapshotNow()
+    endGesture()
   }
+  // also the pointercancel handler: a gesture that dies (capture lost, alt-tab)
+  // must still release the history, or later edits would never be recorded
   function onPointerUp() {
     if (guideDrag) endGuideDrag()
     if (marquee) {
@@ -276,6 +280,7 @@
       if (drag.collapse && !drag.moved) select(drag.type, drag.ref)
       drag = null; snapHit = null
     }
+    endGesture()
   }
 
   function persistHist() { try { localStorage.setItem('tig_hist', app.histOn ? '1' : '0') } catch (e) {} }
@@ -314,9 +319,9 @@
     {#if !app.embed}
       <div class="rulcorner"></div>
       <canvas class="ruler rul-h" title={t('rulerTip')} bind:this={hrEl}
-        onpointerdown={e => rulerDown(e, 'y')} onpointermove={rulerMove} onpointerup={onPointerUp}></canvas>
+        onpointerdown={e => rulerDown(e, 'y')} onpointermove={rulerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}></canvas>
       <canvas class="ruler rul-v" title={t('rulerTip')} bind:this={vrEl}
-        onpointerdown={e => rulerDown(e, 'x')} onpointermove={rulerMove} onpointerup={onPointerUp}></canvas>
+        onpointerdown={e => rulerDown(e, 'x')} onpointermove={rulerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}></canvas>
     {/if}
     <div class="canvaswrap" bind:this={wrapEl} onscroll={scheduleRulers}>
       <div class="paper" style="width:{cw * app.zoom}px;height:{ch * app.zoom}px">
@@ -326,7 +331,7 @@
         {/if}
         <canvas bind:this={cv} width={cw} height={ch}
           style="width:{cw * app.zoom}px;height:{ch * app.zoom}px;cursor:{cursor}"
-          onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp}></canvas>
+          onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}></canvas>
       </div>
     </div>
   </div>

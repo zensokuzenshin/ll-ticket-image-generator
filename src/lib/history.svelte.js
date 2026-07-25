@@ -1,8 +1,14 @@
 /* History (undo / redo), Photoshop-style.
    Snapshot-based: the working template serializes (with ids, so selection
-   survives restores); the canvas render effect schedules a debounced snapshot,
-   so continuous edits (typing, dragging, nudging) coalesce into one entry,
-   while discrete ops call snapshotNow() for an immediate commit.
+   survives restores) and the canvas render effect reports every mutation.
+   Entries are cut where a user action ends, not on a fixed timer:
+     · a pointer drag is one entry, beginGesture() → endGesture(), however
+       long it runs and however long the pointer rests mid-drag;
+     · keyed input (typing, nudging, spinners) coalesces only while it keeps
+       touching the same properties of the same items — moving to another
+       item or another property closes the run and starts a new entry, as
+       does leaving the control or going idle;
+     · discrete ops call snapshotNow() for an immediate commit.
 
    Entries are {s,k,o,thumb}: serialized state, an i18n label key for the
    action that produced it (derived by diffing against the previous state, so
@@ -13,9 +19,11 @@ import { localName } from './i18n.js'
 import { normalize, serializeState, resolveSrc, collectSrcs, seedSrcs } from './template.js'
 import { loadImageObj } from './images.js'
 
-const HIST_MAX=100
+const HIST_MAX=100, IDLE=900
 export const hist = $state({ undo:[], redo:[], present:null })
 let histTimer=null, restoring=false
+let pending=null        // {s,key}: newest uncommitted state and what it changed
+let gesture=false       // a pointer drag owns the timeline until it ends
 
 function makeThumb(){
   try{
@@ -69,6 +77,32 @@ function diffLabel(prevS,curS){
   return {k:'histEdit',o:null}
 }
 
+/* What an edit touches, as a stable string ("id3:pos", "id7:text", "@marL"…).
+   Successive mutations coalesce into one entry only while this stays the
+   same, so moving one item then another — or typing in one field then the
+   next — always cuts an entry, however quickly the switch happens. x and y
+   collapse to one token, so a nudge that changes direction stays one move. */
+function changeKey(prevS,curS){
+  try{
+    const a=JSON.parse(prevS), b=JSON.parse(curS), out=new Set()
+    const scan=(aa,bb)=>{
+      const am=new Map(aa.map(o=>[o.id,o])), bIds=new Set(bb.map(o=>o.id))
+      for(const o of bb){ const p=am.get(o.id)
+        if(!p){ out.add('+'+o.id); continue }
+        for(const kk in o) if(JSON.stringify(o[kk])!==JSON.stringify(p[kk])) out.add(o.id+':'+(kk==='x'||kk==='y'?'pos':kk)) }
+      for(const o of aa) if(!bIds.has(o.id)) out.add('-'+o.id)
+    }
+    scan(a.fields,b.fields); scan(a.images,b.images)
+    if(a.guides.length!==b.guides.length) out.add('@guides')     // snapshots hold guides positionally, no ids
+    else a.guides.forEach((g,i)=>{ if(JSON.stringify(g)!==JSON.stringify(b.guides[i])) out.add('g'+i) })
+    if(a.fields.map(f=>f.id).join()!==b.fields.map(f=>f.id).join()) out.add('@ordF')
+    if(a.images.map(im=>im.id).join()!==b.images.map(im=>im.id).join()) out.add('@ordI')
+    for(const kk of ['cw','ch','marL','marR','font','bg','name','attr'])
+      if(JSON.stringify(a[kk])!==JSON.stringify(b[kk])) out.add('@'+kk)
+    return [...out].sort().join(',')
+  }catch(e){ return '?' }
+}
+
 function commit(s){
   const e={s,...diffLabel(hist.present.s,s),thumb:makeThumb()}
   hist.undo.push(hist.present); if(hist.undo.length>HIST_MAX) hist.undo.shift()
@@ -76,23 +110,51 @@ function commit(s){
   schedulePersist()
 }
 
-export function snapshotNow(){ if(restoring||!app.A||!hist.present) return; clearTimeout(histTimer); const s=serializeState(app.A); if(s&&s!==hist.present.s) commit(s) }
+/** Close the edit in progress (if any) as its own entry. */
+function flushPending(){
+  clearTimeout(histTimer)
+  const p=pending; pending=null
+  if(p&&hist.present&&p.s!==hist.present.s) commit(p.s)
+}
+/** Called where an edit is known to be over — leaving an input, say. */
+export function flushSnapshot(){ if(!restoring) flushPending() }
+
+export function snapshotNow(){
+  if(restoring||!app.A||!hist.present) return
+  flushPending()                      // an unfinished edit stays a separate entry
+  const s=serializeState(app.A)
+  if(s&&s!==hist.present.s) commit(s)
+}
+
+/* A pointer drag: one entry for the whole gesture. Snapshots are suspended
+   between the two calls, so resting mid-drag can no longer split it in two. */
+export function beginGesture(){
+  if(restoring||!app.A||!hist.present) return
+  flushPending(); gesture=true
+}
+export function endGesture(){ if(gesture){ gesture=false; snapshotNow() } }
 
 export function scheduleSnapshot(){
-  if(restoring||!app.A||!hist.present) return
-  clearTimeout(histTimer)
-  histTimer=setTimeout(()=>{ const s=serializeState(app.A); if(s&&s!==hist.present.s) commit(s) },350)
+  if(restoring||!app.A||!hist.present||gesture) return
+  const s=serializeState(app.A)
+  if(!s||s===(pending?pending.s:hist.present.s)) return   // repaint without an edit (zoom, selection…)
+  if(s===hist.present.s){ pending=null; clearTimeout(histTimer); return }  // edit taken back by hand
+  const k=changeKey(hist.present.s,s)
+  if(pending&&k!==pending.key){ commit(pending.s); pending={s,key:changeKey(hist.present.s,s)} }  // a different edit began
+  else pending={s,key:k}
+  clearTimeout(histTimer); histTimer=setTimeout(flushPending,IDLE)
 }
 
 export function resetHistory(){
-  clearTimeout(histTimer); hist.undo=[]; hist.redo=[]
+  clearTimeout(histTimer); pending=null; gesture=false
+  hist.undo=[]; hist.redo=[]
   const s=serializeState(app.A)
   hist.present=s?{s,k:'histOpen',o:app.A?{name:localName(app.A.name)}:null,thumb:makeThumb()}:null
   schedulePersist()
 }
 
 async function restoreState(s){
-  restoring=true; clearTimeout(histTimer)
+  restoring=true; clearTimeout(histTimer); pending=null; gesture=false
   const selId=app.sel.id, selIds=app.sel.ids
   const st=JSON.parse(s)
   for(const im of st.images||[]) im.src=resolveSrc(im.src)   // snapshots hold tigref: handles
@@ -103,12 +165,12 @@ async function restoreState(s){
   const pid=alive.has(selId)?selId:app.sel.ids[app.sel.ids.length-1]||null
   app.sel.id=pid
   app.sel.type=pid?(app.A.fields.some(f=>f.id===pid)?'field':'image'):null
-  restoring=false; clearTimeout(histTimer)
+  restoring=false; clearTimeout(histTimer); pending=null
 }
 
 export function undo(){
   if(restoring||!app.A) return
-  snapshotNow()                       // flush a mid-debounce edit so Ctrl+Z right after typing undoes the typing
+  snapshotNow()                       // close an unfinished edit, so Ctrl+Z right after typing undoes the typing
   if(!hist.undo.length) return
   hist.redo.push(hist.present); hist.present=hist.undo.pop(); restoreState(hist.present.s)
   schedulePersist()
@@ -121,8 +183,8 @@ export function redo(){
 }
 
 // Jump to an absolute position in the timeline (index into the panel list;
-// hist.undo.length is "now"). A pending debounced edit is flushed first — if
-// that flush truncates the redo side, the walk simply stops at the newest state.
+// hist.undo.length is "now"). An unfinished edit is committed first — if that
+// commit truncates the redo side, the walk simply stops at the newest state.
 export function jumpTo(i){
   if(restoring||!app.A||!hist.present) return
   snapshotNow()
@@ -158,8 +220,9 @@ function persistPayload(withHist){
 }
 export function schedulePersist(){ clearTimeout(perTimer); perTimer=setTimeout(persistNow,600) }
 export function persistNow(){
+  if(!app.A||!hist.present||app.embed){ clearTimeout(perTimer); return }  // embed = scripted use, keep storage untouched
+  flushPending()                                // an edit still in progress belongs in the saved session
   clearTimeout(perTimer)
-  if(!app.A||!hist.present||app.embed) return   // embed = scripted use, keep storage untouched
   try{ localStorage.setItem(PERSIST_KEY,persistPayload(true)) }
   catch(e){
     try{ localStorage.setItem(PERSIST_KEY,persistPayload(false)) }

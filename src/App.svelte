@@ -6,7 +6,7 @@
   import { blankPreset } from './lib/template.js'
   import { loadTemplate, ensureFonts, exportImage, saveTemplate, applyAttrLayout,
            doCopy, doPaste, deleteSel, duplicateSel } from './lib/actions.js'
-  import { undo, redo, restoreSession, persistNow } from './lib/history.svelte.js'
+  import { undo, redo, restoreSession, persistNow, flushSnapshot } from './lib/history.svelte.js'
   import Sidebar from './components/Sidebar.svelte'
   import Stage from './components/Stage.svelte'
   import HistoryPanel from './components/HistoryPanel.svelte'
@@ -61,7 +61,10 @@
   })
 
   /* ---------- keyboard ---------- */
-  function editingCtx() { const el = document.activeElement; return !!el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable) }
+  const editable = el => !!el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable)
+  function editingCtx() { return editable(document.activeElement) }
+  // leaving a control ends that edit: whatever is typed next is a new history entry
+  function onFocusOut(ev) { if (editable(ev.target)) flushSnapshot() }
   function onKeydown(ev) {
     // arrow-key nudge for the selected item(s) (never while typing)
     const rs = selRefs()
@@ -97,7 +100,7 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} onpagehide={persistNow} />
-<svelte:document oncopy={onCopy} oncut={onCut} onpaste={onPaste} />
+<svelte:document oncopy={onCopy} oncut={onCut} onpaste={onPaste} onfocusout={onFocusOut} />
 
 <div class="shell" class:embed={app.embed} class:histoff={!app.histOn}>
   <Sidebar />

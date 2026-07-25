@@ -1,19 +1,22 @@
 /* Template load / normalise / (de)serialisation. A template is plain JSON
    (images[] + fields[] + guides[] + layout globals); normalize() fills every
    default so the rest of the app can assume complete objects. */
-import { CW, CH } from './constants.js'
+import { CW, CH, DEFAULT_FONT } from './constants.js'
 import { nid } from './state.svelte.js'
 import { t } from './i18n.js'
 
+// Roboto leads the stack to match the real ticket page, which loads Roboto as
+// its only webfont. Roboto has no CJK glyphs, so kana/kanji fall straight
+// through to `font` (the user's JP family) exactly as they do on the original.
 export function buildStack(font){
-  return font + ",'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',system-ui,sans-serif"
+  return "'Roboto'," + font + ",'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',system-ui,sans-serif"
 }
 
 // Items may carry `tag`, a semantic id (fld_show, img_logo…) that resolves the
 // display label via t(tag); `name` is only for untagged (custom/renamed) items.
 export function normalize(tpl){
   tpl.cw=Math.round(+tpl.cw)||CW; tpl.ch=Math.round(+tpl.ch)||CH
-  tpl.marL=+tpl.marL||0; tpl.marR=+tpl.marR||0; tpl.bg=tpl.bg||'#ffffff'; tpl.font=tpl.font||"'Noto Sans JP'"
+  tpl.marL=+tpl.marL||0; tpl.marR=+tpl.marR||0; tpl.bg=tpl.bg||'#ffffff'; tpl.font=tpl.font||DEFAULT_FONT
   tpl._stack=buildStack(tpl.font)
   tpl.images=(tpl.images||[]).map(im=>({id:im.id||nid(),tag:im.tag||'',name:im.name||'',src:im.src||'',
     x:+im.x||0,y:+im.y||0,w:+im.w||0,h:+im.h||0,fill:!!im.fill,_img:null,natW:0,natH:0}))
@@ -56,7 +59,7 @@ export function applyAttrLayout(A){
 }
 
 export function blankPreset(){
-  return { name:t('newTicketName'), cw:CW, ch:CH, marL:155, marR:155, bg:'#ffffff', font:"'Noto Sans JP'", images:[],
+  return { name:t('newTicketName'), cw:CW, ch:CH, marL:155, marR:155, bg:'#ffffff', font:DEFAULT_FONT, images:[],
     fields:[{ name:t('defNameFieldName'), text:t('defNamePlaceholder'), x:155, y:2852, size:120, weight:700, color:'#000000', lh:140, wrap:true, multiline:true }] }
 }
 

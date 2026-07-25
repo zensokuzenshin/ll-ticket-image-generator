@@ -5,6 +5,7 @@ import { app, select, selRefs, selectMany, deselectRef, nid } from './state.svel
 import { t, dispName, localName } from './i18n.js'
 import { normalize, blankPreset, templateJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
 import { loadImageObj } from './images.js'
+import { KIT_FAMILY, DEFAULT_FONT } from './constants.js'
 import { renderCanvas } from './render.js'
 import { resetHistory, snapshotNow } from './history.svelte.js'
 import { toFullWidth } from './text.js'
@@ -23,9 +24,23 @@ export async function ensureFonts(){
   const txt=(app.A?app.A.fields.map(f=>f.text).join(''):'')+'0123456789年月日（土）公演開場演列番氏名座席'
   try{
     if(document.fonts&&document.fonts.load){
-      await Promise.all([400,500,700,900].map(w=>document.fonts.load(`${w} 100px 'Noto Sans JP'`,txt)))
+      // The Adobe kit loads async and injects its @font-face rules late, so wait
+      // for it before measuring. It resolves on failure too, and the race caps
+      // the wait, so a blocked or slow kit only costs the fallback to Noto.
+      if(window.__tkReady) await Promise.race([window.__tkReady,new Promise(r=>setTimeout(r,3500))])
+      await Promise.all([400,500,700,900].flatMap(w=>[
+        document.fonts.load(`${w} 100px 'Noto Sans JP'`,txt),
+        document.fonts.load(`${w} 100px 'Roboto'`,txt),
+        document.fonts.load(`${w} 100px 'hiragino-kaku-gothic-pron'`,txt)]))
       await document.fonts.ready
-      app.fontState='ok'
+      // Hiragino is the default, so a blocked kit silently swaps the output back
+      // to Noto. Surface that through the existing warning rather than hide it.
+      // document.fonts.check() cannot tell us this: it answers true for a family
+      // that does not exist at all, so look for the kit's own face instead.
+      let kitOk=false
+      document.fonts.forEach(f=>{ if(f.family===KIT_FAMILY&&f.status==='loaded') kitOk=true })
+      const wantsKit=((app.A&&app.A.font)||DEFAULT_FONT).includes(KIT_FAMILY)
+      app.fontState=wantsKit&&!kitOk?'system':'ok'
     } else { app.fontState='system' }
   }catch(e){ app.fontState='system' }
   app.fontTick++               // fonts changed → repaint

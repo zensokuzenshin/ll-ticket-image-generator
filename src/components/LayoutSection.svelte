@@ -2,6 +2,7 @@
   import { app } from '../lib/state.svelte.js'
   import { t } from '../lib/i18n.js'
   import { setFont, setCanvasSize } from '../lib/actions.js'
+  import { DEFAULT_FONT } from '../lib/constants.js'
   import Section from './Section.svelte'
 
   const num = e => parseFloat(e.currentTarget.value) || 0
@@ -29,8 +30,8 @@
   </div>
   <div class="field"><label>{t('fontLabel')}</label>
     <select value={app.A.font} onchange={e => setFont(e.currentTarget.value)}>
+      <option value={DEFAULT_FONT}>{t('fontHira')}</option>
       <option value="'Noto Sans JP'">{t('fontNoto')}</option>
-      <option value="'Hiragino Kaku Gothic ProN','Noto Sans JP'">{t('fontHira')}</option>
       <option value="'Yu Gothic','YuGothic','Noto Sans JP'">{t('fontYu')}</option>
       <option value="'Meiryo','Noto Sans JP'">{t('fontMeiryo')}</option>
     </select>
