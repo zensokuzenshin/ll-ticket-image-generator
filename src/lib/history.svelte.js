@@ -9,6 +9,7 @@
    no mutation site needs to announce itself), the affected item's display
    name, and a tiny canvas thumbnail. */
 import { app } from './state.svelte.js'
+import { localName } from './i18n.js'
 import { normalize, serializeState } from './template.js'
 import { loadImageObj } from './images.js'
 
@@ -60,7 +61,7 @@ function diffLabel(prevS,curS){
       if(changed.every(c=>c[1].every(kk=>kk==='x'||kk==='y'))) return {k:'histMove',o:null}   // multi-selection drag/nudge
     }
     if(JSON.stringify(a.attr)!==JSON.stringify(b.attr)) return {k:'histPairs',o:null}
-    if(a.name!==b.name) return {k:'histRename',o:null}
+    if(JSON.stringify(a.name)!==JSON.stringify(b.name)) return {k:'histRename',o:null}   // name may be a per-language object
     if(a.marL!==b.marL||a.marR!==b.marR||a.font!==b.font||a.bg!==b.bg) return {k:'histLayout',o:null}
   }catch(e){}
   return {k:'histEdit',o:null}
@@ -83,7 +84,7 @@ export function scheduleSnapshot(){
 export function resetHistory(){
   clearTimeout(histTimer); hist.undo=[]; hist.redo=[]
   const s=serializeState(app.A)
-  hist.present=s?{s,k:'histOpen',o:app.A?{name:app.A.name}:null,thumb:makeThumb()}:null
+  hist.present=s?{s,k:'histOpen',o:app.A?{name:localName(app.A.name)}:null,thumb:makeThumb()}:null
 }
 
 async function restoreState(s){

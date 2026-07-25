@@ -23,7 +23,7 @@
 <aside class="histpanel">
   <div class="hphead">
     <span>{t('stHistory')}</span>
-    <button class="sm ghost" title={t('histClearTt')} onclick={clear}>🗑</button>
+    <button class="sm ghost" title={t('histClearTt')} onclick={clear}>{t('histClear')}</button>
   </div>
   <div class="hplist" bind:this={listEl}>
     {#each items as e, i}

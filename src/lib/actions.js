@@ -2,7 +2,7 @@
    canvas re-rendering happens automatically because the template is $state. */
 import { flushSync } from 'svelte'
 import { app, select, selRefs, selectMany, deselectRef, nid } from './state.svelte.js'
-import { t, dispName } from './i18n.js'
+import { t, dispName, localName } from './i18n.js'
 import { normalize, blankPreset, templateJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
 import { loadImageObj } from './images.js'
 import { renderCanvas } from './render.js'
@@ -120,7 +120,7 @@ function download(blob,name){
 export function saveTemplate(){
   const out=templateJSON(app.A,dispName)
   const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'})
-  download(blob,(app.A.name||'template').replace(/[^\w\-ぁ-んァ-ヶ一-龠]/g,'_')+'.json')
+  download(blob,(localName(app.A.name)||'template').replace(/[^\w\-ぁ-んァ-ヶ一-龠가-힣]/g,'_')+'.json')
 }
 export function loadTemplateFile(file){
   const fr=new FileReader()

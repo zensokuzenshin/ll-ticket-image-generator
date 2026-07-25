@@ -28,6 +28,16 @@ export function t(k){
    (custom/renamed) items. */
 export function dispName(o){ return (o&&o.tag) ? t(o.tag) : ((o&&o.name)||'') }
 
+/* Template-level `name` (the show name) may be a plain string or a per-language
+   object like {"ko": …, "ja": …, "en": …}, hand-edited in the preset JSON —
+   there is no UI for the variants and Save JSON keeps whichever form is there.
+   Reads app.lang, so preset labels re-render on language change. */
+export function localName(n){
+  if(!n) return ''
+  if(typeof n==='string') return n
+  return n[app.lang] || n[DEFAULT_LANG] || Object.values(n)[0] || ''
+}
+
 export function detectLang(){
   try{ const s=localStorage.getItem('tig_lang'); if(s&&I18N[s]) return s }catch(e){}
   const cs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||'']

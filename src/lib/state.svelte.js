@@ -24,6 +24,7 @@ export const app = $state({
   fname: 'ticket',
   embed: false,
   histOn: true,
+  showHelp: false,
   canvasEl: null,             // the <canvas>, set by Stage on mount (for export & history thumbs)
 
   // reference overlay (never exported)

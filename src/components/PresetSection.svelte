@@ -1,6 +1,6 @@
 <script>
   import { app } from '../lib/state.svelte.js'
-  import { t } from '../lib/i18n.js'
+  import { t, localName } from '../lib/i18n.js'
   import { loadPresetKey, newBlank, saveTemplate, loadTemplateFile } from '../lib/actions.js'
   import Section from './Section.svelte'
 
@@ -13,7 +13,7 @@
     <div class="row" style="align-items:center">
       <select bind:value={app.presetKey} onchange={() => loadPresetKey(app.presetKey)}>
         {#each Object.keys(app.presets || {}) as k (k)}
-          <option value={k}>{app.presets[k].name || k}</option>
+          <option value={k}>{localName(app.presets[k].name) || k}</option>
         {/each}
         <option value="__custom">{t('presetCustom')}</option>
       </select>

@@ -78,6 +78,7 @@
     else if (ev.key === 'Delete' || ev.key === 'Backspace') { if (editingCtx() || !selRef()) return
       ev.preventDefault(); deleteSel() }
     else if (ev.key === 'Escape') {
+      if (app.showHelp) { app.showHelp = false; return }
       if (editingCtx()) { document.activeElement.blur(); return }
       if (selRef()) select(null, null) }
   }
