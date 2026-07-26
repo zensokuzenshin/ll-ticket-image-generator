@@ -125,6 +125,8 @@
   "fld_seattype": "좌석 종류",
   "fld_seatlbl": "좌석 라벨",
   "fld_seatval": "좌석 번호",
+  "fld_arrivelbl": "권장 입장 시간 라벨",
+  "fld_arrive": "권장 입장 시간",
   "fld_namelbl": "이름 라벨",
   "fld_nameval": "이름",
   "img_logo": "로고"

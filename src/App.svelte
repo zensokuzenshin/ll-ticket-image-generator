@@ -36,6 +36,7 @@
     const loaded = await loadPresets()
     app.presets = loaded && loaded.presets
     app.presetGroups = loaded && loaded.groups
+    app.presetPaths = loaded && loaded.paths
     if (!app.presets) {                       // fetch failed (e.g. file://) → degrade gracefully
       app.presets = { blank: blankPreset() }
       app.presetErr = true

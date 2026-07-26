@@ -20,7 +20,10 @@ export function normalize(tpl){
   tpl._stack=buildStack(tpl.font)
   tpl.images=(tpl.images||[]).map(im=>({id:im.id||nid(),tag:im.tag||'',name:im.name||'',src:im.src||'',
     x:+im.x||0,y:+im.y||0,w:+im.w||0,h:+im.h||0,fill:!!im.fill,_img:null,natW:0,natH:0}))
-  tpl.fields=(tpl.fields||[]).map(f=>({id:f.id||nid(),tag:f.tag||'',key:f.key||'',name:f.name||'',
+  // `role` is documentation inside the shipped preset files (which field of a
+  // ticket this is); the app never reads it, it just has to survive a
+  // load → edit → save round trip.
+  tpl.fields=(tpl.fields||[]).map(f=>({id:f.id||nid(),tag:f.tag||'',role:f.role||'',key:f.key||'',name:f.name||'',
     text:f.text??'',x:+f.x||0,y:+f.y||0,size:+f.size||48,weight:+f.weight||700,
     color:f.color||'#000000',lh:+f.lh||Math.round((+f.size||48)*1.2),ls:+f.ls||0,
     wrap:f.wrap!==false,multiline:!!f.multiline,shrink:!!f.shrink,
@@ -100,7 +103,7 @@ export function serializeState(A){
   return JSON.stringify({name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font,attr:A.attr,
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({id:im.id,tag:im.tag,name:im.name,src:internSrc(im.src),x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
-    fields:A.fields.map(f=>({id:f.id,tag:f.tag,key:f.key,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
+    fields:A.fields.map(f=>({id:f.id,tag:f.tag,role:f.role,key:f.key,name:f.name,text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))})
 }
 
 /** Portable template JSON for download — no ids, display names resolved. */
@@ -109,6 +112,41 @@ export function templateJSON(A,dispName){
     guides:A.guides.map(g=>({axis:g.axis,pos:g.pos})),
     images:A.images.map(im=>({name:dispName(im),src:im.src,x:im.x,y:im.y,w:im.w,h:im.h,fill:im.fill})),
     fields:A.fields.map(f=>({key:f.key,name:dispName(f),text:f.text,x:f.x,y:f.y,size:f.size,weight:f.weight,color:f.color,lh:f.lh,ls:f.ls,wrap:f.wrap,multiline:f.multiline,shrink:f.shrink,attr:f.attr}))}
+}
+
+/** Built-in-preset JSON, i.e. the shape the files under public/presets/ are
+    written in — the dev-only "save to source file" writes this back over the
+    file the template came from. Unlike templateJSON it keeps `tag` and `role`
+    (a preset's labels are localised through its tags, so resolving them away
+    would break the item list in the other two languages) and drops the sample
+    text loadTemplate() pre-fills, so presets keep shipping the personal fields
+    empty. Optional keys are emitted only when set, matching the hand-written
+    files. */
+export function presetJSON(A){
+  const out={name:A.name,cw:A.cw,ch:A.ch,marL:A.marL,marR:A.marR,bg:A.bg,font:A.font}
+  if(A.guides.length) out.guides=A.guides.map(g=>({axis:g.axis,pos:g.pos}))
+  out.images=A.images.map(im=>{
+    const o={}
+    if(im.tag) o.tag=im.tag; else if(im.name) o.name=im.name
+    o.src=im.src; o.x=im.x; o.y=im.y; o.w=im.w; o.h=im.h
+    if(im.fill) o.fill=true
+    return o
+  })
+  out.fields=A.fields.map(f=>{
+    const o={}
+    if(f.role) o.role=f.role
+    if(f.tag) o.tag=f.tag; else if(f.name) o.name=f.name
+    if(f.key) o.key=f.key
+    o.text=SAMPLE_TEXT[f.tag]===f.text?'':f.text
+    o.x=f.x; o.y=f.y; o.size=f.size; o.weight=f.weight; o.color=f.color; o.lh=f.lh
+    if(f.ls) o.ls=f.ls
+    o.wrap=f.wrap; o.multiline=f.multiline
+    if(f.shrink) o.shrink=true
+    if(f.attr) o.attr=f.attr
+    return o
+  })
+  out.attr=A.attr
+  return out
 }
 
 /* Built-in presets ship the personal fields (座席番号 / 氏名 values) empty;

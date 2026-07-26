@@ -1,10 +1,22 @@
 <script>
   import { app } from '../lib/state.svelte.js'
   import { t, localName } from '../lib/i18n.js'
-  import { loadPresetKey, newBlank, saveTemplate, loadTemplateFile } from '../lib/actions.js'
+  import { loadPresetKey, newBlank, saveTemplate, loadTemplateFile, DEV, sourceFile, saveToSource } from '../lib/actions.js'
   import Section from './Section.svelte'
 
   let fileEl
+
+  /* Dev server only: write the template straight back into its preset file
+     instead of downloading it. DEV is false in every build, so the block below
+     is compiled out of the shipped app. */
+  const src = $derived(DEV ? sourceFile() : '')     // reads app.presetPaths/presetKey → stays in sync
+  let devMsg = $state('')
+  let devTimer
+  async function devSave() {
+    const r = await saveToSource()
+    devMsg = r.ok ? 'saved to ' + r.file : 'failed: ' + r.error
+    clearTimeout(devTimer); devTimer = setTimeout(() => devMsg = '', 4000)
+  }
 
   /* Catalogue cascade (group → event → show). gi/si point into
      app.presetGroups and follow the active preset; while "(custom)" is shown
@@ -59,6 +71,14 @@
     <button class="sm" onclick={saveTemplate}>{t('btnSave')}</button>
     <button class="sm" onclick={() => fileEl.click()}>{t('btnLoad')}</button>
   </div>
+  {#if DEV}
+    <div class="addbtns">
+      <button class="sm" disabled={!src} onclick={devSave}
+        title={src ? 'overwrite public/presets/' + src : 'only for templates loaded from presets/'}>
+        {devMsg || (src ? 'Save to ' + src : 'Save to source file')}
+      </button>
+    </div>
+  {/if}
   <input type="file" accept="application/json,.json" hidden bind:this={fileEl}
     onchange={e => { const f = e.currentTarget.files[0]; if (f) loadTemplateFile(f); e.currentTarget.value = '' }}>
   {#if app.presetErr}<div class="mini" style="color:var(--danger)">{t('presetLoadErr')}</div>{/if}

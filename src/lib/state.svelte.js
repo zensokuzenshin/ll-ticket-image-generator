@@ -12,6 +12,7 @@ export const app = $state({
 
   presets: null,              // key → template (fetched from presets/)
   presetGroups: null,         // catalogue tree [{name, series:[{name, keys}]}], null = flat list
+  presetPaths: null,          // key → its file under presets/ (dev "save to source file")
   presetKey: '',
   presetErr: false,
 

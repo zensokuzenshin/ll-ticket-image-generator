@@ -125,6 +125,8 @@
   "fld_seattype": "席種",
   "fld_seatlbl": "座席ラベル",
   "fld_seatval": "座席番号",
+  "fld_arrivelbl": "推奨来場時間ラベル",
+  "fld_arrive": "推奨来場時間",
   "fld_namelbl": "氏名ラベル",
   "fld_nameval": "氏名",
   "img_logo": "ロゴ"

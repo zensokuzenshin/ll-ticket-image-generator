@@ -125,6 +125,8 @@
   "fld_seattype": "Seat type",
   "fld_seatlbl": "Seat label",
   "fld_seatval": "Seat number",
+  "fld_arrivelbl": "Arrival-time label",
+  "fld_arrive": "Recommended arrival time",
   "fld_namelbl": "Name label",
   "fld_nameval": "Name",
   "img_logo": "Logo"

@@ -3,7 +3,7 @@
 import { flushSync } from 'svelte'
 import { app, select, selRefs, selectMany, deselectRef, nid } from './state.svelte.js'
 import { t, dispName, localName } from './i18n.js'
-import { normalize, blankPreset, templateJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
+import { normalize, blankPreset, templateJSON, presetJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
 import { loadImageObj } from './images.js'
 import { KIT_FAMILY, DEFAULT_FONT } from './constants.js'
 import { renderCanvas } from './render.js'
@@ -52,7 +52,7 @@ export function addField(){
   app.A.fields.push(f); select('field',f); snapshotNow()
 }
 export function duplicateField(f){
-  const c={...f,id:nid(),tag:'',name:dispName(f),y:f.y+f.lh,attr:0}   // the copy's pair partner wasn't copied
+  const c={...f,id:nid(),tag:'',role:'',name:dispName(f),y:f.y+f.lh,attr:0}   // the copy's pair partner wasn't copied
   app.A.fields.splice(app.A.fields.indexOf(f)+1,0,c)
   select('field',c); snapshotNow()
 }
@@ -164,6 +164,28 @@ export function loadTemplateFile(file){
   fr.readAsText(file)
 }
 
+/* ---------- dev only: write back into the preset file ----------
+   Overwrites the file the current preset was loaded from instead of
+   downloading a copy — the vite dev server does the writing (vite-dev-save.js).
+   import.meta.env.DEV is false in every build, so this and its button drop out
+   of the shipped app, which still has no backend. */
+export const DEV=import.meta.env.DEV
+/** The file behind the loaded template, '' for anything hand-loaded or new. */
+export const sourceFile=()=>(DEV&&app.presetPaths&&app.presetPaths[app.presetKey])||''
+export async function saveToSource(){
+  const file=sourceFile()
+  if(!file) return {ok:false,error:'no source file for this template'}
+  const json=presetJSON(app.A)
+  try{
+    const r=await fetch('/__save-preset',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({file,json})})
+    const d=await r.json().catch(()=>({}))
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status))
+    app.presets[app.presetKey]=JSON.parse(JSON.stringify(json))   // ↻ (and re-picking) now reload what is on disk
+    return {ok:true,file}
+  }catch(e){ return {ok:false,error:e.message} }
+}
+
 /* ---------- export ---------- */
 export function exportImage(type){
   const cv=app.canvasEl; if(!cv||!app.A) return
@@ -243,7 +265,7 @@ export function duplicateSel(){
   const copies=[]
   for(const {type,o} of items){
     if(type==='field'){
-      const c={...o,id:nid(),tag:'',name:dispName(o),y:o.y+o.lh}
+      const c={...o,id:nid(),tag:'',role:'',name:dispName(o),y:o.y+o.lh}
       app.A.fields.splice(app.A.fields.indexOf(o)+1,0,c); copies.push({type,o:c})
     } else {
       const c={...o,id:nid(),tag:'',name:dispName(o),x:o.x+30,y:o.y+30}
