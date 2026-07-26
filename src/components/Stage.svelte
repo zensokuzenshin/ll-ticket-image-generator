@@ -323,6 +323,9 @@
       <canvas class="ruler rul-v" title={t('rulerTip')} bind:this={vrEl}
         onpointerdown={e => rulerDown(e, 'x')} onpointermove={rulerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}></canvas>
     {/if}
+    {#if app.showBusy && !app.embed}
+      <div class="stageload"><span class="spinner"></span>{t('loading')}</div>
+    {/if}
     <div class="canvaswrap" bind:this={wrapEl} onscroll={scheduleRulers}>
       <div class="paper" style="width:{cw * app.zoom}px;height:{ch * app.zoom}px">
         {#if app.refSrc}

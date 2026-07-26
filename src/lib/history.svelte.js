@@ -249,7 +249,9 @@ export async function restoreSession(){
     }
     seedNid(maxId)
     if(typeof d.fname==='string'&&d.fname) app.fname=d.fname
-    app.presetKey=(app.presets&&app.presets[d.presetKey])?d.presetKey:'__custom'
+    // the key only has to exist in the catalogue — the saved session carries the
+    // whole template, so restoring never downloads the preset file
+    app.presetKey=app.presetKeys.includes(d.presetKey)?d.presetKey:'__custom'
     await restoreState(hist.present.s)
     return true
   }catch(e){

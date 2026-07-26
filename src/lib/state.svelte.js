@@ -10,11 +10,22 @@ export const app = $state({
   // sidebar panels edit. ids always contains id when something is selected.
   sel: { type: null, id: null, ids: [] },
 
-  presets: null,              // key → template (fetched from presets/)
+  // The catalogue (keys/names/groups) comes from presets/index.json at boot;
+  // `presets` holds only the templates actually downloaded so far — one show is
+  // fetched when it is picked, never the whole list.
+  presets: {},                // key → template, filled in as shows are opened
   presetGroups: null,         // catalogue tree [{name, series:[{name, keys}]}], null = flat list
+  presetKeys: [],             // every preset key, in index.json order
+  presetNames: {},            // key → label from index.json (absent = resolved from the file)
   presetPaths: null,          // key → its file under presets/ (dev "save to source file")
   presetKey: '',
   presetErr: false,
+
+  // >0 while a template is being fetched/decoded; starts busy for the boot load.
+  // showBusy is the same thing after a short delay, so cached (instant) loads
+  // never flash a spinner — that is the one the UI watches.
+  busy: 1,
+  showBusy: false,
 
   zoom: 1,
   showBoxes: false,           // 枠: exact bounding boxes

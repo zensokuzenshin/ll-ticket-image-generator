@@ -5,6 +5,7 @@ import { app, select, selRefs, selectMany, deselectRef, nid } from './state.svel
 import { t, dispName, localName } from './i18n.js'
 import { normalize, blankPreset, templateJSON, presetJSON, buildStack, applyAttrLayout as applyAttr, NEW_FIELD, NEW_LOGO, NEW_BG, SAMPLE_TEXT } from './template.js'
 import { loadImageObj } from './images.js'
+import { fetchPreset } from './presets.js'
 import { KIT_FAMILY, DEFAULT_FONT } from './constants.js'
 import { renderCanvas } from './render.js'
 import { resetHistory, snapshotNow } from './history.svelte.js'
@@ -146,7 +147,46 @@ export function distributePairs(){ applyAttr(app.A); snapshotNow() }
 
 /* ---------- presets / template files ---------- */
 export function newBlank(){ app.presetKey='__custom'; loadTemplate(blankPreset()) }
-export function loadPresetKey(k){ if(app.presets&&app.presets[k]){ loadTemplate(app.presets[k]) } }
+
+/* Preset bodies are downloaded one show at a time (the catalogue itself is just
+   index.json). app.presets doubles as the fetch-once cache, so re-picking a
+   show — and the dev "save to source file", which refreshes an entry in place —
+   costs nothing. */
+export async function ensurePreset(k){
+  if(!k||k==='__custom') return null
+  if(app.presets[k]) return app.presets[k]
+  const tpl=await fetchPreset(k)
+  if(tpl) app.presets[k]=tpl
+  return tpl
+}
+
+let pickToken=0
+export async function loadPresetKey(k){
+  if(!k||k==='__custom') return            // "(custom)" is the template in hand — nothing to fetch
+  const mine=++pickToken
+  app.busy++
+  try{
+    const tpl=await ensurePreset(k)
+    if(mine!==pickToken) return             // a newer pick took over while this one downloaded
+    if(!tpl){ app.presetErr=true; return }
+    app.presetErr=false
+    await loadTemplate(tpl)
+  }finally{ app.busy-- }
+}
+
+/* Labels for shows whose index.json entry gave no name: take it from the preset
+   itself, which means fetching it — quietly (no busy state; what the user asked
+   for is already on screen) and only for the shows currently listed. Until that
+   lands the option reads "loading", and a preset that cannot be fetched falls
+   back to its key so the option is still pickable. */
+const naming=new Set()
+export function warmPresetNames(keys){
+  for(const k of keys){
+    if(app.presetNames[k]||naming.has(k)) continue
+    naming.add(k)
+    ensurePreset(k).then(tpl=>{ app.presetNames[k]=(tpl&&tpl.name)||k })
+  }
+}
 
 function download(blob,name){
   const url=URL.createObjectURL(blob); const a=document.createElement('a')
@@ -182,6 +222,7 @@ export async function saveToSource(){
     const d=await r.json().catch(()=>({}))
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status))
     app.presets[app.presetKey]=JSON.parse(JSON.stringify(json))   // ↻ (and re-picking) now reload what is on disk
+    if(json.name) app.presetNames[app.presetKey]=json.name        // a renamed show relabels its list entry too
     return {ok:true,file}
   }catch(e){ return {ok:false,error:e.message} }
 }

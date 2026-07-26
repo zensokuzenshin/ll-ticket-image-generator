@@ -1,7 +1,8 @@
 <script>
+  import { untrack } from 'svelte'
   import { app } from '../lib/state.svelte.js'
   import { t, localName } from '../lib/i18n.js'
-  import { loadPresetKey, newBlank, saveTemplate, loadTemplateFile, DEV, sourceFile, saveToSource } from '../lib/actions.js'
+  import { loadPresetKey, warmPresetNames, newBlank, saveTemplate, loadTemplateFile, DEV, sourceFile, saveToSource } from '../lib/actions.js'
   import Section from './Section.svelte'
 
   let fileEl
@@ -30,8 +31,13 @@
         if (gs[g].series[s].keys.includes(app.presetKey)) { gi = g; si = s; return }
   })
   const series = $derived(app.presetGroups ? (app.presetGroups[gi]?.series || []) : [])
-  const keys = $derived(app.presetGroups ? (series[si]?.keys || []) : Object.keys(app.presets || {}))
+  const keys = $derived(app.presetGroups ? (series[si]?.keys || []) : app.presetKeys)
   function pick(k) { app.presetKey = k; loadPresetKey(k) }
+
+  /* Show labels come from index.json, so the list can be built without
+     downloading anything; warmPresetNames fills in the entries that omit one. */
+  const label = k => localName(app.presetNames[k]) || t('loading')
+  $effect(() => { const ks = keys; untrack(() => warmPresetNames(ks)) })
 </script>
 
 <Section id="preset" title={t('secPreset')} hint={t('presetHint')}>
@@ -58,12 +64,13 @@
     <div class="row" style="align-items:center">
       <select bind:value={app.presetKey} onchange={() => loadPresetKey(app.presetKey)}>
         {#each keys as k (k)}
-          <option value={k}>{localName(app.presets[k].name) || k}</option>
+          <option value={k}>{label(k)}</option>
         {/each}
         <option value="__custom">{t('presetCustom')}</option>
       </select>
       <button class="sm ghost" style="flex:0 0 auto" title={t('btnReset')}
         onclick={() => loadPresetKey(app.presetKey)}>↻</button>
+      {#if app.showBusy}<span class="spinner" title={t('loading')}></span>{/if}
     </div>
   </div>
   <div class="addbtns">

@@ -72,6 +72,7 @@
   "addGuideH": "＋ Horizontal guide",
   "guideHint": "Drag from a <b>ruler</b> onto the canvas to create a guide.<br><b>Drag</b> a guide on the canvas to move it; drag it off the canvas to delete.<br>Objects <b>snap</b> to guides while dragging (left/center/right · top/middle/bottom; hold Alt to disable).<br><b>Ctrl+;</b> toggles visibility.<br>Guides are never exported.",
   "rulerTip": "Drag onto the canvas to create a guide",
+  "loading": "Loading…",
   "fontLoading": "Loading font…",
   "fontSystem": "Using system font",
   "fontSystemTt": "The intended font could not be loaded, so text may render differently from the original.",

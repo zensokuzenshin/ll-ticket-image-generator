@@ -2,9 +2,9 @@
   import { onMount } from 'svelte'
   import { app, select, selRef, selRefs } from './lib/state.svelte.js'
   import { I18N, detectLang } from './lib/i18n.js'
-  import { loadPresets } from './lib/presets.js'
+  import { loadIndex } from './lib/presets.js'
   import { blankPreset } from './lib/template.js'
-  import { loadTemplate, ensureFonts, exportImage, saveTemplate, applyAttrLayout,
+  import { loadTemplate, loadPresetKey, ensureFonts, exportImage, saveTemplate, applyAttrLayout,
            doCopy, doPaste, deleteSel, duplicateSel } from './lib/actions.js'
   import { undo, redo, restoreSession, persistNow, flushSnapshot } from './lib/history.svelte.js'
   import Sidebar from './components/Sidebar.svelte'
@@ -32,33 +32,44 @@
     clearTimeout(fontTimer); fontTimer = setTimeout(ensureFonts, 400)
   })
 
+  // A load that finishes quickly (anything already cached) must not flash a
+  // spinner, so the visible state trails app.busy by a beat.
+  let busyTimer
+  $effect(() => {
+    clearTimeout(busyTimer)
+    if (app.busy) busyTimer = setTimeout(() => app.showBusy = true, 150)
+    else app.showBusy = false
+  })
+
   onMount(async () => {
-    const loaded = await loadPresets()
-    app.presets = loaded && loaded.presets
-    app.presetGroups = loaded && loaded.groups
-    app.presetPaths = loaded && loaded.paths
-    if (!app.presets) {                       // fetch failed (e.g. file://) → degrade gracefully
-      app.presets = { blank: blankPreset() }
-      app.presetErr = true
-    }
-    // an explicit ?preset= (or embed/scripted use) beats the saved session
-    const qpreset = params.get('preset')
-    const restored = !qpreset && !app.embed && await restoreSession()
-    if (!restored) {
-      let firstKey = Object.keys(app.presets)[0]
-      if (qpreset && app.presets[qpreset]) firstKey = qpreset
-      app.presetKey = firstKey
-      await loadTemplate(app.presets[firstKey])
-    }
-    ensureFonts()
-    if (params.has('boxes')) app.showBoxes = true
-    const qd = params.get('distribute')               // ?distribute=top,labelGap,pairGap
-    if (qd && app.A.attr) {
-      const p = qd.split(',').map(Number)
-      if (p[0]) app.A.attr.top = p[0]; if (p[1]) app.A.attr.labelGap = p[1]; if (p[2]) app.A.attr.pairGap = p[2]
-      applyAttrLayout()
-    }
-    if (app.embed) { app.zoom = 1; window.__ready = true }
+    try {
+      // only the catalogue: the shows themselves are fetched as they are picked
+      const idx = await loadIndex()
+      if (idx) {
+        app.presetKeys = idx.keys
+        app.presetNames = idx.names
+        app.presetGroups = idx.groups
+        app.presetPaths = idx.paths
+      } else app.presetErr = true             // fetch failed (e.g. file://) → blank template + "load a file"
+
+      // an explicit ?preset= (or embed/scripted use) beats the saved session
+      const qpreset = params.get('preset')
+      const restored = !qpreset && !app.embed && await restoreSession()
+      if (!restored) {
+        const firstKey = (qpreset && app.presetKeys.includes(qpreset)) ? qpreset : app.presetKeys[0]
+        if (firstKey) { app.presetKey = firstKey; await loadPresetKey(firstKey) }
+        if (!app.A) { app.presetKey = '__custom'; await loadTemplate(blankPreset()) }
+      }
+      ensureFonts()
+      if (params.has('boxes')) app.showBoxes = true
+      const qd = params.get('distribute')               // ?distribute=top,labelGap,pairGap
+      if (qd && app.A.attr) {
+        const p = qd.split(',').map(Number)
+        if (p[0]) app.A.attr.top = p[0]; if (p[1]) app.A.attr.labelGap = p[1]; if (p[2]) app.A.attr.pairGap = p[2]
+        applyAttrLayout()
+      }
+      if (app.embed) { app.zoom = 1; window.__ready = true }
+    } finally { app.busy-- }                  // app.busy starts at 1: the boot load is one of them
   })
 
   /* ---------- keyboard ---------- */
